@@ -241,5 +241,27 @@ document.querySelectorAll('#trackTabs button').forEach(b=>b.addEventListener('cl
 }));
 render();
 </script>
+ <script>
+async function loadJraData() {
+  try {
+    const response = await fetch(
+      "https://keiba-track-data.sleeping4439.workers.dev/"
+    );
+
+    if (!response.ok) {
+      throw new Error("データ取得失敗");
+    }
+
+    const data = await response.json();
+
+    console.log("JRA馬場データ:", data);
+
+  } catch (error) {
+    console.error("JRAデータ取得エラー:", error);
+  }
+}
+
+loadJraData();
+</script>
 </body>
 </html>
