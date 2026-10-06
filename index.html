@@ -75,8 +75,8 @@ input[type=range]{width:100%;margin:0;accent-color:#555}
     </div>
     <div class="info">
       <div class="metric"><small>クッション値</small><b>9.4</b></div>
-      <div class="metric"><small>含水率</small><b>12.1%</b></div>
-      <div class="metric"><small>馬場状態</small><b>良</b></div>
+<div class="metric"><small>含水率</small><b id="moistureValue">12.1%</b></div>
+<div class="metric"><small>馬場状態</small><b id="conditionValue">良</b></div>
     </div>
   </div>
 
@@ -255,7 +255,17 @@ async function loadJraData() {
     const data = await response.json();
 
     console.log("JRA馬場データ:", data);
+   
+// JRAデータを画面に反映
+if (data.moisture && data.moisture.goal != null) {
+  document.getElementById("moistureValue").textContent =
+    data.moisture.goal + "%";
+}
 
+if (data.condition) {
+  document.getElementById("conditionValue").textContent =
+    data.condition;
+}
   } catch (error) {
     console.error("JRAデータ取得エラー:", error);
   }
