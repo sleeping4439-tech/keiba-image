@@ -74,7 +74,7 @@ input[type=range]{width:100%;margin:0;accent-color:#555}
       <button class="active" data-track="東京">東京</button><button data-track="京都">京都</button><button data-track="福島">福島</button>
     </div>
     <div class="info">
-  <div class="metric"><small>クッション値</small><b>9.4</b></div>
+  <small>クッション値</small><b id="cushionValue">--</b>
   <div class="metric"><small>含水率</small><b id="moistureValue">--</b></div>
   <div class="metric"><small>馬場状態</small><b id="conditionValue">--</b></div>
   <div class="metric"><small>使用コース</small><b id="railValue">--</b></div>
@@ -258,6 +258,10 @@ async function loadJraData() {
     console.log("JRA馬場データ:", data);
    
 // JRAデータを画面に反映
+   if (data.cushion != null) {
+  document.getElementById("cushionValue").textContent =
+    data.cushion;
+}
 if (data.moisture && data.moisture.goal != null) {
   document.getElementById("moistureValue").textContent =
     data.moisture.goal + "%";
