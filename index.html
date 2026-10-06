@@ -74,10 +74,11 @@ input[type=range]{width:100%;margin:0;accent-color:#555}
       <button class="active" data-track="東京">東京</button><button data-track="京都">京都</button><button data-track="福島">福島</button>
     </div>
     <div class="info">
-      <div class="metric"><small>クッション値</small><b>9.4</b></div>
-<div class="metric"><small>含水率</small><b id="moistureValue">12.1%</b></div>
-<div class="metric"><small>馬場状態</small><b id="conditionValue">良</b></div>
-    </div>
+  <div class="metric"><small>クッション値</small><b>9.4</b></div>
+  <div class="metric"><small>含水率</small><b id="moistureValue">--</b></div>
+  <div class="metric"><small>馬場状態</small><b id="conditionValue">--</b></div>
+  <div class="metric"><small>使用コース</small><b id="railValue">--</b></div>
+</div>
   </div>
 
   <div class="card">
@@ -265,6 +266,8 @@ if (data.moisture && data.moisture.goal != null) {
 if (data.condition) {
   document.getElementById("conditionValue").textContent =
     data.condition;
+}if (data.rail) {
+  document.getElementById("railValue").textContent = data.rail;
 }
   } catch (error) {
     console.error("JRAデータ取得エラー:", error);
