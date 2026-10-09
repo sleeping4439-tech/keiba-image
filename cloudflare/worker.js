@@ -35,6 +35,10 @@ function extractCondition(html,title,url){
  if(!meeting||!heading)return null;
  const afterHeading=body.slice(body.indexOf(heading[0])+heading[0].length,body.indexOf(heading[0])+heading[0].length+220);
  if(!/現在/.test(afterHeading.slice(0,60)))return null;
+ const weatherMatch=afterHeading.match(/天候\s*[：:]\s*(晴|曇|雨|雪|小雨|小雪)(?=\s|$)/);
+ const meetingNumberMatch=meeting[0].match(/第(\d+)回/);
+ const meetingDayMatch=meeting[0].match(/競馬\s*第(\d+)日/);
+ const railMatch=body.match(/使用コース\s*([A-D])コース(?:\s|[（(])/);
  const turf=afterHeading.match(/(?:^|\s)芝\s*(良|稍重|重|不良)(?:\s|$)/);
  if(!turf)return null;
  const year=Number(meeting[1]),month=Number(heading[1]),day=Number(heading[2]);
@@ -51,7 +55,7 @@ function extractCondition(html,title,url){
  const moistureFinish=goal!==undefined?Number(goal):null;
  const moistureCorner=corner!==undefined?Number(corner):null;
  const validMoisture=moistureFinish!==null&&moistureCorner!==null&&moistureFinish>=0&&moistureFinish<=100&&moistureCorner>=0&&moistureCorner<=100;
- return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,
+ return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,meetingNumber:meetingNumberMatch?Number(meetingNumberMatch[1]):null,meetingDay:meetingDayMatch?Number(meetingDayMatch[1]):null,weather:weatherMatch?weatherMatch[1]:null,rail:railMatch?railMatch[1]:null,railDay:null,
   moistureFinish:validMoisture?moistureFinish:null,moistureCorner:validMoisture?moistureCorner:null,
   moistureMeasuredAt:null,
   note:validMoisture?'芝含水率はJRA芝専用表から取得。測定時刻は未確認':'馬場状態のみ取得。含水率・クッション値の測定時刻は未確認'};
@@ -135,7 +139,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:10});
+ if(path==='/health')return respond({ok:true,version:11});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
