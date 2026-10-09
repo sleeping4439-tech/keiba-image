@@ -29,11 +29,11 @@ async function weather(name){
 function extractCondition(html,title,url){
  const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
  if(!['東京','京都'].includes(course))return null;
- const body=textOnly(html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi,' ').replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi,' '));
- const meeting=body.match(/第\\d+回[^\\s]{0,10}競馬第\\d+日（(20\\d\\d)年(\\d{1,2})月(\\d{1,2})日/);
- const section=body.match(/馬場状態（(\\d{1,2})月(\\d{1,2})日[^）]*?現在）([\\s\\S]{0,250})/);
+ const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
+ const meeting=body.match(/第\d+回[^\s]{0,10}競馬第\d+日（(20\d\d)年(\d{1,2})月(\d{1,2})日/);
+ const section=body.match(/馬場状態（(\d{1,2})月(\d{1,2})日[^）]*?現在）([\s\S]{0,250})/);
  if(!meeting||!section)return null;
- const m=section[3].match(/(?:天候[：:]?[^\\s]*\\s*)?芝\\s+(良|稍重|重|不良)(?:\\s|$)/);
+ const m=section[3].match(/(?:天候[：:]?[^\s]*\s*)?芝\s+(良|稍重|重|不良)(?:\s|$)/);
  if(!m)return null;
  const year=Number(meeting[1]),month=Number(section[1]),day=Number(section[2]);
  const meetingDate=new Date(Date.UTC(year,Number(meeting[2])-1,Number(meeting[3])));
