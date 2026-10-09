@@ -148,7 +148,7 @@
 <section class="panel" id="controlsPanel"><div class="line"><div class="heading">時計レベル</div><div class="selectWrap"><button id="clockButton" class="selectButton" aria-expanded="false"><span id="clockValue">超高速</span><span>⌄</span></button><div class="menu" id="clockMenu" hidden></div></div></div>
 <div class="divider"></div><div class="line"><div class="heading">負荷設定</div><div class="segments" id="segments"><button class="segment active" data-segment="道中">道中</button><button class="segment" data-segment="4角">4角</button><button class="segment" data-segment="直線">直線</button></div></div>
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
-<div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><small>この端末・ブラウザに自動保存されます</small></div>
+<div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><small>この端末・ブラウザに自動保存されます</small><div style="margin-top:14px"><a href="./races.html" style="font-weight:700;color:#247448;text-decoration:none">レース一覧 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
