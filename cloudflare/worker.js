@@ -170,7 +170,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return respond({ok:true,version:17,racesFix:'regex-syntax-fixed'});
+ if(path==='/health')return respond({ok:true,version:18,racesFix:'http-diagnostics'});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -268,7 +268,7 @@ export default {async fetch(request){
   const sourceUrl='https://www.jra.go.jp/keiba/calendar'+year+'/'+year+'/'+month+'/'+month+day+'.html';
   try{
    const response=await fetch(sourceUrl);
-   if(!response.ok)return respond({date,sourceUrl,races:[],available:false},200);
+   if(!response.ok)return respond({date,sourceUrl,races:[],available:false,diagnostics:{stage:'fetch',httpStatus:response.status,finalUrl:response.url}},200);
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const stripped=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ');
    const tables=[...stripped.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)];
@@ -297,7 +297,7 @@ export default {async fetch(request){
     for(const race of races){if(race.number<=prev){group++}race.track=group===0?'東京':group===1?'京都':null;prev=race.number}
    }
    return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。',diagnostics:{tables:tables.length,candidates:diagnostics}});
-  }catch(error){return respond({date,sourceUrl,races:[],available:false,error:'取得失敗'})}
+  }catch(error){return respond({date,sourceUrl,races:[],available:false,diagnostics:{stage:'fetch-or-parse',error:String(error)}})}
  } catch(error){return respond({ok:false,endpoint:'races',error:String(error),hint:'Worker race handler error'},200)}
  }
  if(path==='/weekly'){
