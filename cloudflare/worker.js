@@ -259,6 +259,36 @@ export default {async fetch(request){
   }));
   return respond({checkedAt:new Date().toISOString(),results});
  }
+ if(path==='/races'){
+  const date=url.searchParams.get('date');
+  if(!/^20\d{2}-\d{2}-\d{2}$/.test(date||''))return respond({error:'invalid_date'},400);
+  const [year,month,day]=date.split('-');
+  const sourceUrl='https://www.jra.go.jp/keiba/calendar'+year+'/'+year+'/'+month+'/'+month+day+'.html';
+  try{
+   const response=await fetch(sourceUrl);
+   if(!response.ok)return respond({date,sourceUrl,races:[],available:false},200);
+   const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+   const stripped=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ');
+   const tables=[...stripped.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)];
+   const races=[];
+   for(const t of tables){
+    const before=stripped.slice(Math.max(0,t.index-600),t.index);
+    const track=[...before.matchAll(/(?:東京|京都)競馬場|\d+回(?:東京|京都)\d+日/g)].pop()?.[0]||'';
+    const name=track.includes('東京')?'東京':track.includes('京都')?'京都':null;
+    if(!name)continue;
+    for(const tr of t[0].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+     const cells=[...tr[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1]));
+     const num=Number((cells[0]||'').match(/(\d+)\s*(?:レース|R)/)?.[1]);
+     if(!(num>=1&&num<=12)||cells.length<2)continue;
+     const description=cells.slice(1,-1).join(' ').trim()||cells[1];
+     const time=cells.at(-1).match(/\d{1,2}時\d{2}分|\d{1,2}:\d{2}/)?.[0]||'';
+     const distance=description.match(/([12],?\d{3})\s*[（(]\s*(芝|ダ)/);
+     races.push({track:name,number:num,name:description.replace(/\s+/g,' ').slice(0,130),time,surface:distance?.[2]==='芝'?'芝':distance?.[2]==='ダ'?'ダート':'',distance:distance?Number(distance[1].replace(',','')):null});
+    }
+   }
+   return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。'});
+  }catch(error){return respond({date,sourceUrl,races:[],available:false,error:'取得失敗'})}
+ }
  if(path==='/weekly'){
   const results={};
   await Promise.all(JRA_PAGES.map(async file=>{
