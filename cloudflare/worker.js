@@ -25,6 +25,41 @@ async function weather(name){
  if(!c||!Number.isFinite(c.wind_speed_10m)||!Number.isFinite(c.wind_direction_10m))throw Error('Weather data invalid');
  return {speed:c.wind_speed_10m,direction:c.wind_direction_10m,weatherCode:c.weather_code,observedAt:c.time,source:'Open-Meteo',sourceUrl:'https://open-meteo.com/'};
 }
+
+function extractCondition(html,title,url){
+ const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
+ if(!['東京','京都'].includes(course))return null;
+ const body=textOnly(html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi,' ').replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi,' '));
+ const meeting=body.match(/第\\d+回[^\\s]{0,10}競馬第\\d+日（(20\\d\\d)年(\\d{1,2})月(\\d{1,2})日/);
+ const section=body.match(/馬場状態（(\\d{1,2})月(\\d{1,2})日[^）]*?現在）([\\s\\S]{0,250})/);
+ if(!meeting||!section)return null;
+ const m=section[3].match(/(?:天候[：:]?[^\\s]*\\s*)?芝\\s+(良|稍重|重|不良)(?:\\s|$)/);
+ if(!m)return null;
+ const year=Number(meeting[1]),month=Number(section[1]),day=Number(section[2]);
+ const meetingDate=new Date(Date.UTC(year,Number(meeting[2])-1,Number(meeting[3])));
+ const observedDate=new Date(Date.UTC(year,month-1,day));
+ if(observedDate.getUTCFullYear()!==year||observedDate.getUTCMonth()!==month-1||observedDate.getUTCDate()!==day)return null;
+ if(observedDate.getTime()>meetingDate.getTime()||meetingDate.getTime()-observedDate.getTime()>14*86400000)return null;
+ const observedAt=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+ return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,moistureFinish:null,moistureCorner:null,
+  note:'馬場状態のみ取得。クッション値・含水率の測定時刻は未確認'};
+}
+async function jraVerified(){
+ const pages=await jraDiagnostic();
+ const tracks={};
+ for(const page of pages){
+  if(!page.course||!['東京','京都'].includes(page.course)||page.status!==200)continue;
+  try{
+   const response=await fetch(page.url);
+   if(!response.ok)continue;
+   const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+   const x=extractCondition(html,page.title,page.url);
+   if(x&&(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt))tracks[x.course]=x;
+  }catch{}
+ }
+ return tracks;
+}
+
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
  if(path==='/health')return respond({ok:true,version:5});
@@ -36,6 +71,9 @@ export default {async fetch(request){
   }));
   return respond(result);
  }
- if(path==='/'||path==='/latest')return respond({schemaVersion:1,updatedAt:null,tracks:{},status:'unavailable',reason:'JRA実測値は検証完了まで未公開'});
+ if(path==='/'||path==='/latest'){
+ const tracks=await jraVerified();
+ return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'馬場状態のみ検証対象。クッション値と含水率は未取得'});
+}
  return respond({ok:false,error:'not_found'},404);
 }};
