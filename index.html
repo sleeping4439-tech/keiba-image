@@ -318,11 +318,27 @@ updateTerrain();
 const WEATHER_API='https://keiba-track-data.sleeping4439.workers.dev/weather';
 let windByTrack={};
 function showLiveWind(){
- const d=windByTrack[state.track],target=document.getElementById('windLive');
- if(!target)return;
- if(!d||!Number.isFinite(d.speed)||!Number.isFinite(d.direction)){target.textContent='風：未取得';return;}
- const points=['北','北東','東','南東','南','南西','西','北西'];
- target.textContent='風：'+points[Math.round(d.direction/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
+ const d=windByTrack[state.track],target=document.getElementById('windLive'),field=document.getElementById('windField');
+ const valid=d&&Number.isFinite(d.speed)&&Number.isFinite(d.direction);
+ if(target){
+  if(!valid)target.textContent='風：未取得';
+  else{
+   const points=['北','北東','東','南東','南','南西','西','北西'];
+   target.textContent='風：'+points[Math.round(((d.direction%360)+360)%360/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
+  }
+ }
+ if(!field)return;
+ field.style.display=valid?'':'none';
+ field.setAttribute('aria-label',valid?'風向・風速の近傍推定に基づく風のアニメーション':'風向未取得');
+ if(!valid)return;
+ // 気象風向は「吹いてくる方向」。矢印は「吹いていく方向」に向ける。
+ const angle=((d.direction+90)%360+360)%360;
+ const positions=[[70,190],[122,218],[48,253],[112,282],[168,265]];
+ field.querySelectorAll('.windArrow').forEach((arrow,i)=>{
+  const [x,y]=positions[i];
+  arrow.setAttribute('transform','translate('+x+' '+y+') rotate('+angle+')');
+  arrow.style.animationDuration=(2.6+Math.min(2,Math.max(0,4-d.speed)*0.25)).toFixed(2)+'s';
+ });
 }
 async function updateWind(){
  try{
