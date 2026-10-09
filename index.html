@@ -47,7 +47,7 @@
 .windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
 @media(max-width:600px){.windArrow{stroke-width:7}}
 </style></head><body><main class="app"><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
-<div class="wind">風：北西　4.2m/s　↘　<span style="font-weight:400;color:#888">（仮データ）</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
+<div class="wind">風：未取得 <span style="font-weight:400;color:#888">（データ連携待ち）</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
 <defs>
@@ -60,7 +60,7 @@
 
 </g>
 <!-- コース外に5つの風向アニメ。取得後は実際の風向へ回転する -->
-<g id="windField" aria-label="風向の模式表示（仮データ）">
+<g id="windField" aria-label="風向の模式表示（風向未取得）" style="display:none">
   <g class="windArrow" style="animation-delay:0s" transform="translate(70 190)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-.45s" transform="translate(122 218)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-1.1s" transform="translate(48 253)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
@@ -77,22 +77,22 @@
 <rect x="604" y="236" width="47" height="26" rx="5" fill="#dedede"/>
 <text id="direction" x="627.5" y="254">左</text>
 <rect x="656" y="236" width="106" height="26" rx="5" fill="#dedede"/>
-<text id="meetingDay" x="709" y="254">4回2日目</text>
+<text id="meetingDay" x="709" y="254">未取得</text>
 <rect x="604" y="269" width="47" height="26" rx="5" fill="#dedede"/>
-<text id="weather" x="627.5" y="287">晴</text>
+<text id="weather" x="627.5" y="287">—</text>
 <rect x="656" y="269" width="106" height="26" rx="5" fill="#dedede"/>
-<text id="railDay" x="709" y="287">A 1日目</text>
+<text id="railDay" x="709" y="287">未取得</text>
 </g>
 </g>
 <path d="M302 325 H762" stroke="#aaa" stroke-width="1.8"/>
 <g text-anchor="middle" fill="#222">
 <text x="354" y="351" font-size="16">クッション値</text>
-<text x="354" y="401" font-size="43">10.0</text>
+<text id="cushionValue" x="354" y="401" font-size="43">—</text>
 <text x="506" y="351" font-size="16">含水率</text>
-<text x="506" y="379" font-size="22">G前 15.5%</text>
-<text x="506" y="408" font-size="22">4角 13.5%</text>
+<text id="moistureFinish" x="506" y="379" font-size="22">G前 —</text>
+<text id="moistureCorner" x="506" y="408" font-size="22">4角 —</text>
 <text x="657" y="351" font-size="16">コンディション</text>
-<text x="657" y="401" font-size="43">稍</text>
+<text id="turfCondition" x="657" y="401" font-size="43">—</text>
 </g>
 </svg>
 </section>
@@ -152,7 +152,7 @@
 <div class="divider"></div><div class="line"><div class="heading">負荷設定</div><div class="segments" id="segments"><button class="segment active" data-segment="道中">道中</button><button class="segment" data-segment="4角">4角</button><button class="segment" data-segment="直線">直線</button></div></div>
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><small>この端末・ブラウザに自動保存されます</small></div>
-<div class="note">※デザイン・操作確認用。日付は端末の当日を表示（取得日ではありません）。東京の開催・天気・使用コース情報は表示例であり、ライブ取得ではありません。外部データ取得と保存は未接続。京都・福島のコース形状は後日差し替えます。</div></section></main>
+<div class="note">※数値は確認済みデータがある場合だけ表示します。データ未取得時は「—」と表示。風の情報は別途接続予定。</div></section></main>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
@@ -176,7 +176,7 @@ renderMemo();
 // weather: string; rail: 'A'|'B'|'C'|'D' (or available course);
 // railDay: count of racing days on the current rail configuration.
 const courseMeta={
- '東京':{courseDirection:'左',meetingNumber:4,dayNumber:2,weather:'晴',rail:'A',railDay:1},
+ '東京':{courseDirection:'左',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null},
  '京都':{courseDirection:'右',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null},
  '福島':{courseDirection:'右',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null}
 };
@@ -314,4 +314,37 @@ $('viewToggle').addEventListener('click',()=>{
  updateTerrain();
 });
 updateTerrain();
+
+/* Verified-data adapter. No sample figures are ever shown as measurements. */
+let verifiedLatest=null;
+function applyVerifiedData(){
+ const d=verifiedLatest?.tracks?.[state.track]||null;
+ const val=(x)=>x===null||x===undefined||x===''?'—':String(x);
+ $('cushionValue').textContent=val(d?.cushion);
+ $('moistureFinish').textContent='G前 '+(d?.moistureFinish==null?'—':val(d.moistureFinish)+'%');
+ $('moistureCorner').textContent='4角 '+(d?.moistureCorner==null?'—':val(d.moistureCorner)+'%');
+ $('turfCondition').textContent=val(d?.condition);
+ const m=courseMeta[state.track];
+ m.weather=d?.weather||'—';
+ m.meetingNumber=d?.meetingNumber??null;
+ m.dayNumber=d?.dayNumber??null;
+ m.rail=d?.rail??null;
+ m.railDay=d?.railDay??null;
+ renderCourseMeta();
+ const wind=document.querySelector('.wind');
+ if(wind){const w=d?.wind;wind.firstChild.textContent=w?.direction&&Number.isFinite(Number(w.speed))?'風：'+w.direction+' '+w.speed+'m/s　':'風：未取得　';}
+ const note=document.getElementById('dataSourceNote');
+ if(note)note.textContent=d?.sourceUrl&&d?.observedAt?'確認済みデータ：'+d.observedAt+' ｜出典：JRA（風は別ソース）':'馬場データ：未取得（表示例は使用していません）';
+}
+(function(){
+ const note=document.createElement('div');note.id='dataSourceNote';note.className='note';
+ document.getElementById('conditionView').insertAdjacentElement('afterend',note);
+ applyVerifiedData();
+ fetch('./data/latest.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('No data');return r.json()}).then(d=>{
+  if(d&&d.schemaVersion===1&&d.tracks&&typeof d.tracks==='object')verifiedLatest=d;
+  applyVerifiedData();
+ }).catch(()=>applyVerifiedData());
+ const observer=new MutationObserver(()=>applyVerifiedData());
+ observer.observe($('trackName'),{childList:true,characterData:true,subtree:true});
+})();
 </script></body></html>
