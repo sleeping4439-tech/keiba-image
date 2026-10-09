@@ -74,7 +74,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:7});
+ if(path==='/health')return respond({ok:true,version:8});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -143,6 +143,23 @@ export default {async fetch(request){
     }
     const paths=[...new Set([...js.matchAll(/["']([^"' ]{1,200}\.(?:json|csv|xml|php|js)(?:\?[^"']*)?)["']/gi)].map(m=>m[1]))].slice(0,60);
     return {url,status:res.status,length:js.length,excerpts,paths};
+   }catch(error){return {url,error:String(error)}}
+  }));
+  return respond({checkedAt:new Date().toISOString(),results});
+ }
+ if(path==='/source-data-diagnostics'){
+  const filenames=['_data_cushion.html','_data_moist.html'];
+  const results=await Promise.all(filenames.map(async filename=>{
+   const url=BASE+filename;
+   try{
+    const res=await fetch(url);
+    const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+    const sections=[];
+    for(const course of ['東京','京都']){
+     const candidates=[...html.matchAll(new RegExp('<(?:div|section|li)\\b[^>]*\\bid=["\\x27]([^"\\x27]+)["\\x27][^>]*>[\\s\\S]{0,1800}','gi'))].filter(m=>m[0].includes(course)).slice(0,3);
+     sections.push({course,samples:candidates.map(m=>({id:m[1],html:m[0].slice(0,1400)}))});
+    }
+    return {url,status:res.status,length:html.length,head:html.slice(0,3500),sections};
    }catch(error){return {url,error:String(error)}}
   }));
   return respond({checkedAt:new Date().toISOString(),results});
