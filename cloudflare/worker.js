@@ -64,6 +64,32 @@ function extractCondition(html,title,url){
   note:validMoisture?'芝含水率はJRA芝専用表から取得。測定時刻は未確認':'馬場状態のみ取得。含水率・クッション値の測定時刻は未確認'};
 }
 
+// 2026年秋開催のJRA公式「馬場概要」に基づく芝コース使用計画。
+// 同じコースを開催をまたいで使用する場合は日数を継続して数える。
+// 当日公表の使用コースと計画が一致する場合に限り使用日数を表示する。
+const RAIL_SCHEDULE_2026={
+ 東京:{4:[['A',9],['B',2]],5:[['B',4],['C',5]]},
+ 京都:{4:[['A',9],['B',2]],5:[['B',4],['C',4]]}
+};
+function officialRailDay(course,year,meetingNumber,meetingDay,rail){
+ if(year!==2026||!RAIL_SCHEDULE_2026[course]||!Number.isInteger(meetingNumber)||!Number.isInteger(meetingDay)||!rail)return null;
+ const meetings=RAIL_SCHEDULE_2026[course];
+ let previousRail=null,consecutive=0;
+ for(const number of [4,5]){
+  const segments=meetings[number];
+  let day=0;
+  for(const [segmentRail,length] of segments){
+   if(previousRail!==segmentRail)consecutive=0;
+   for(let i=0;i<length;i++){
+    day++;
+    consecutive++;
+    if(number===meetingNumber&&day===meetingDay)return rail===segmentRail?consecutive:null;
+   }
+   previousRail=segmentRail;
+  }
+ }
+ return null;
+}
 function measuredDate(raw,year){
  const m=raw.match(/(\d{1,2})月(\d{1,2})日(?:[（(][^）)]*[）)])?\s*(\d{1,2})時(\d{1,2})分/);
  if(!m)return null;
@@ -121,6 +147,7 @@ async function jraVerified(){
    const year=Number(x.observedAt.slice(0,4));
    const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',x.observedAt):null;
    const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',x.observedAt):null;
+   x.railDay=officialRailDay(x.course,year,x.meetingNumber,x.meetingDay,x.rail);
    x.cushion=c?.cushion??null;
    x.cushionMeasuredAt=c?.time??null;
    if(m){
@@ -142,7 +169,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:12});
+ if(path==='/health')return respond({ok:true,version:13});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
