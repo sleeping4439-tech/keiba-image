@@ -83,6 +83,34 @@ export default {async fetch(request){
   }
   return respond({checkedAt:new Date().toISOString(),results});
  }
+
+ if(path==='/measurement-diagnostics'){
+  const results=[];
+  for(const p of await jraDiagnostic()){
+   if(!['東京','京都'].includes(p.course)||p.status!==200)continue;
+   try{
+    const response=await fetch(p.url);
+    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+    const body=textOnly(html);
+    const markers=['芝のクッション値','クッション値','含水率','ゴール前と4コーナーの含水率'];
+    const excerpts={};
+    for(const marker of markers){
+     const positions=[];
+     let offset=0;
+     while(positions.length<3){
+      const i=body.indexOf(marker,offset);
+      if(i<0)break;
+      positions.push(body.slice(Math.max(0,i-70),i+400));
+      offset=i+marker.length;
+     }
+     excerpts[marker]=positions;
+    }
+    const selects=[...html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)].slice(0,8).map(m=>textOnly(m[0]).slice(0,400));
+    results.push({course:p.course,url:p.url,excerpts,selects});
+   }catch(error){results.push({course:p.course,error:String(error)})}
+  }
+  return respond({checkedAt:new Date().toISOString(),results,note:'Diagnostic excerpts only; no measurements inferred from reference scales'});
+ }
  if(path==='/weather'){
   const result={updatedAt:new Date().toISOString(),tracks:{}};
   await Promise.all(Object.keys(LOCATIONS).map(async name=>{
