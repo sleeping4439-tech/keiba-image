@@ -337,6 +337,34 @@ $('viewToggle').addEventListener('click',()=>{
 });
 updateTerrain();
 
+// スマホ: コース図・起伏図を左右スワイプして競馬場を切り替える。
+// 既存のタブをクリックすることで、風・JRA情報・設定など全更新処理を再利用する。
+function enableTrackSwipe(element){
+ let startX=0,startY=0,tracking=false;
+ element.addEventListener('touchstart',event=>{
+  if(event.touches.length!==1||event.target.closest('button,a,input,textarea,select')){tracking=false;return}
+  startX=event.touches[0].clientX;
+  startY=event.touches[0].clientY;
+  tracking=true;
+ },{passive:true});
+ element.addEventListener('touchend',event=>{
+  if(!tracking||event.changedTouches.length!==1)return;
+  tracking=false;
+  const dx=event.changedTouches[0].clientX-startX;
+  const dy=event.changedTouches[0].clientY-startY;
+  if(Math.abs(dx)<55||Math.abs(dx)<Math.abs(dy)*1.4)return;
+  const next=dx<0?'京都':'東京';
+  if(next===state.track)return;
+  const tab=document.querySelector('#tabs .tab[data-track="'+next+'"]');
+  if(tab)tab.click();
+ },{passive:true});
+ element.addEventListener('touchcancel',()=>{tracking=false},{passive:true});
+}
+if(window.matchMedia('(pointer:coarse)').matches){
+ enableTrackSwipe($('conditionView'));
+ enableTrackSwipe($('terrainView'));
+}
+
 const WEATHER_API='https://keiba-track-data.sleeping4439.workers.dev/weather';
 let windByTrack={};
 function showLiveWind(){
