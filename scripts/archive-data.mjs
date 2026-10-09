@@ -6,7 +6,8 @@ if(!response.ok)throw Error('Worker HTTP '+response.status);
 const data=await response.json();
 if(data.schemaVersion!==1||!data.tracks||typeof data.tracks!=='object')throw Error('Unexpected Worker schema');
 const verified={};
-const todayJST=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const dateParts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+const todayJST=dateParts.year+'-'+dateParts.month+'-'+dateParts.day;
 for(const name of ['東京','京都']){
  const x=data.tracks[name];
  if(!x||x.course!==name||!/^https:\/\/www\.jra\.go\.jp\/keiba\/baba\//.test(x.sourceUrl||''))continue;
