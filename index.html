@@ -47,7 +47,7 @@
 .windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
 @media(max-width:600px){.windArrow{stroke-width:7}}
 </style></head><body><main class="app"><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
-<div class="wind">風：北西　4.2m/s　↘　<span style="font-weight:400;color:#888">（仮データ）</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
+<div id="jraLivePanel" role="status">JRA馬場状態：未取得</div><div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
 <defs>
@@ -60,7 +60,7 @@
 
 </g>
 <!-- コース外に5つの風向アニメ。取得後は実際の風向へ回転する -->
-<g id="windField" aria-label="風向の模式表示（仮データ）">
+<g id="windField" aria-label="風向未取得" style="display:none">
   <g class="windArrow" style="animation-delay:0s" transform="translate(70 190)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-.45s" transform="translate(122 218)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-1.1s" transform="translate(48 253)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
@@ -176,7 +176,7 @@ renderMemo();
 // weather: string; rail: 'A'|'B'|'C'|'D' (or available course);
 // railDay: count of racing days on the current rail configuration.
 const courseMeta={
- '東京':{courseDirection:'左',meetingNumber:4,dayNumber:2,weather:'晴',rail:'A',railDay:1},
+ '東京':{courseDirection:'左',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null},
  '京都':{courseDirection:'右',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null},
  '福島':{courseDirection:'右',meetingNumber:null,dayNumber:null,weather:'—',rail:null,railDay:null}
 };
@@ -314,4 +314,51 @@ $('viewToggle').addEventListener('click',()=>{
  updateTerrain();
 });
 updateTerrain();
+
+const WEATHER_API='https://keiba-track-data.sleeping4439.workers.dev/weather';
+let windByTrack={};
+function showLiveWind(){
+ const d=windByTrack[state.track],target=document.getElementById('windLive');
+ if(!target)return;
+ if(!d||!Number.isFinite(d.speed)||!Number.isFinite(d.direction)){target.textContent='風：未取得';return;}
+ const points=['北','北東','東','南東','南','南西','西','北西'];
+ target.textContent='風：'+points[Math.round(d.direction/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
+}
+async function updateWind(){
+ try{
+  const response=await fetch(WEATHER_API,{cache:'no-store'});
+  if(!response.ok)throw Error('weather unavailable');
+  windByTrack=(await response.json()).tracks||{};
+ }catch{windByTrack={};}
+ showLiveWind();
+}
+document.getElementById('tabs').addEventListener('click',showLiveWind);
+updateWind();
+
+const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
+let jraTracks={};
+function renderJRA(){
+ const x=jraTracks[state.track],el=document.getElementById('jraLivePanel');
+ if(!el)return;
+ if(!x||!['良','稍重','重','不良'].includes(x.condition)||!/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'')){
+  el.textContent='JRA公式馬場データ：未取得';return;
+ }
+ const measured=(v)=>typeof v==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)?v.slice(5,10).replace('-','/')+' '+v.slice(11,16):'時刻未取得';
+ const cushion=Number.isFinite(x.cushion)?x.cushion+'（'+measured(x.cushionMeasuredAt)+'測定）':'未取得';
+ const moisture=Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)?
+ 'ゴール前 '+x.moistureFinish+'% / 4角 '+x.moistureCorner+'%（'+measured(x.moistureMeasuredAt)+'測定）':'未取得';
+ el.textContent='JRA公式｜'+state.track+' 芝 '+x.condition+'｜公表日 '+x.observedAt+'｜クッション値 '+cushion+'｜芝含水率 '+moisture;
+}
+
+async function refreshJRA(){
+ try{
+  const res=await fetch(JRA_URL,{cache:'no-store'});
+  if(!res.ok)throw Error('unavailable');
+  const body=await res.json();
+  jraTracks=body.schemaVersion===1&&body.tracks?body.tracks:{};
+ }catch{jraTracks={};}
+ renderJRA();
+}
+document.getElementById('tabs').addEventListener('click',renderJRA);
+refreshJRA();
 </script></body></html>
