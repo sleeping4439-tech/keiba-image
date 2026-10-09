@@ -168,7 +168,8 @@ async function jraVerified(){
 }
 
 export default {async fetch(request){
- const path=new URL(request.url).pathname;
+ const url=new URL(request.url);
+ const path=url.pathname;
  if(path==='/health')return respond({ok:true,version:13});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
