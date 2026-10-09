@@ -332,7 +332,17 @@ function showLiveWind(){
  field.setAttribute('aria-label',valid?'風向・風速の近傍推定に基づく風のアニメーション':'風向未取得');
  if(!valid)return;
  // 気象風向は「吹いてくる方向」。矢印は「吹いていく方向」に向ける。
- const angle=((d.direction+90)%360+360)%360;
+ // 実コースのゴール前進行方位: 東京=西(270°)、京都=北東(45°)。
+ // 模式図では東京のゴール前は右向き、京都は左向き。
+ // 気象風向(吹いてくる方位)→吹いていく向きに直し、コース図の方位へ回転。
+ const courseRotation=state.track==='京都'?225:180;
+ const angle=((d.direction+90+courseRotation)%360+360)%360;
+ const straightBearing=state.track==='京都'?45:270;
+ const flowBearing=(d.direction+180)%360;
+ const difference=(flowBearing-straightBearing)*Math.PI/180;
+ const along=Math.cos(difference);
+ const relative=along>0.38?'追い風':along< -0.38?'向かい風':'横風';
+ if(target)target.textContent+='｜ゴール前 '+relative+'（推定）';
  const positions=[[70,190],[122,218],[48,253],[112,282],[168,265]];
  field.querySelectorAll('.windArrow').forEach((arrow,i)=>{
   const [x,y]=positions[i];
