@@ -105,8 +105,10 @@ export default {async fetch(request){
      }
      excerpts[marker]=positions;
     }
-    const selects=[...html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)].slice(0,8).map(m=>textOnly(m[0]).slice(0,400));
-    results.push({course:p.course,url:p.url,excerpts,selects});
+    const selects=[...html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)].slice(0,8).map(m=>({html:m[0].slice(0,1800),text:textOnly(m[0]).slice(0,500)}));
+    const scriptSources=[...html.matchAll(/<script\b[^>]*src=["']([^"']+)["']/gi)].slice(0,25).map(m=>m[1]);
+    const moistureTables=[...html.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)].filter(m=>/ゴール前|4コーナー/.test(textOnly(m[0]))).slice(0,3).map(m=>({text:textOnly(m[0]).slice(0,700),html:m[0].slice(0,2200)}));
+    results.push({course:p.course,url:p.url,excerpts,selects,scriptSources,moistureTables});
    }catch(error){results.push({course:p.course,error:String(error)})}
   }
   return respond({checkedAt:new Date().toISOString(),results,note:'Diagnostic excerpts only; no measurements inferred from reference scales'});
