@@ -304,6 +304,7 @@ export default {async fetch(request){
   const results={};
   await Promise.all(JRA_PAGES.map(async file=>{
    const url=BASE+file;
+   let track;
    try{
     const response=await fetch(url);
     if(!response.ok)return;
