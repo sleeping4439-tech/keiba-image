@@ -30,11 +30,12 @@ function extractCondition(html,title,url){
  const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
  if(!['東京','京都'].includes(course))return null;
  const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
- const meeting=body.match(/第\d+回[^\s]{0,10}競馬第\d+日（(20\d\d)年(\d{1,2})月(\d{1,2})日/);
- const section=body.match(/馬場状態（(\d{1,2})月(\d{1,2})日[^）]*?現在）([\s\S]{0,250})/);
+ const meeting=body.match(/第\d+回\s*[^ ]{1,15}競馬\s*第\d+日\s*[（(]\s*(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+ const section=body.match(/馬場状態\s*[（(]\s*(\d{1,2})月\s*(\d{1,2})日[^）)]*[）)]([\s\S]{0,500})/);
  if(!meeting||!section)return null;
- const m=section[3].match(/(?:天候[：:]?[^\s]*\s*)?芝\s+(良|稍重|重|不良)(?:\s|$)/);
- if(!m)return null;
+ const turf=section[3].match(/(?:^|\s)芝\s*(良|稍重|重|不良)(?:\s|$)/);
+ if(!turf)return null;
+ const m=turf;
  const year=Number(meeting[1]),month=Number(section[1]),day=Number(section[2]);
  const meetingDate=new Date(Date.UTC(year,Number(meeting[2])-1,Number(meeting[3])));
  const observedDate=new Date(Date.UTC(year,month-1,day));
@@ -64,6 +65,22 @@ export default {async fetch(request){
  const path=new URL(request.url).pathname;
  if(path==='/health')return respond({ok:true,version:5});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
+
+ if(path==='/parse-diagnostics'){
+  const results=[];
+  for(const p of await jraDiagnostic()){
+   if(!['東京','京都'].includes(p.course)||p.status!==200)continue;
+   try{
+    const res=await fetch(p.url);
+    const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+    const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
+    const at=body.indexOf('馬場状態');
+    const mt=body.search(/第\d+回/);
+    results.push({course:p.course,title:p.title,meetingExcerpt:mt<0?null:body.slice(mt,mt+130),conditionExcerpt:at<0?null:body.slice(at,at+220),parsed:extractCondition(html,p.title,p.url)});
+   }catch(error){results.push({course:p.course,error:String(error)})}
+  }
+  return respond({checkedAt:new Date().toISOString(),results});
+ }
  if(path==='/weather'){
   const result={updatedAt:new Date().toISOString(),tracks:{}};
   await Promise.all(Object.keys(LOCATIONS).map(async name=>{
