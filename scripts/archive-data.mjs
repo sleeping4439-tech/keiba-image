@@ -15,12 +15,19 @@ for(const name of ['東京','京都']){
  const values=numeric.map(k=>t[k]);
  if(values.some(v=>v!==null&&v!==undefined&&(!Number.isFinite(v)||v<0||v>100)))continue;
  if(values.every(v=>v===null||v===undefined)&&!['良','稍重','重','不良'].includes(t.condition))continue;
+ if(t.condition!=null&&!['良','稍重','重','不良'].includes(t.condition))continue;
  tracks[name]={...t};
 }
 if(!Object.keys(tracks).length){console.log('No verified observations; keep previous snapshot.');process.exit(0)}
 const latestPath='data/latest.json';
 let previous={schemaVersion:1,updatedAt:null,tracks:{}};
 try{previous=JSON.parse(await readFile(latestPath,'utf8'))}catch{}
+// Reject older measurements so an old cached response cannot overwrite fresh data.
+for(const [name,t] of Object.entries(tracks)){
+ const old=previous.tracks?.[name];
+ if(old?.observedAt && Date.parse(old.observedAt)>Date.parse(t.observedAt))delete tracks[name];
+}
+if(!Object.keys(tracks).length){console.log('No newer verified observations.');process.exit(0)}
 const merged={schemaVersion:1,updatedAt:new Date().toISOString(),tracks:{...previous.tracks,...tracks}};
 await mkdir('data',{recursive:true});
 await writeFile(latestPath,JSON.stringify(merged,null,2)+'\n');
