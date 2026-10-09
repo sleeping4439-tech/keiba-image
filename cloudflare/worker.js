@@ -170,7 +170,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return respond({ok:true,version:13});
+ if(path==='/health')return respond({ok:true,version:15,racesFix:'guarded'});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -261,7 +261,8 @@ export default {async fetch(request){
   return respond({checkedAt:new Date().toISOString(),results});
  }
  if(path==='/races'){
-  const date=url.searchParams.get('date');
+ try {
+  const date=new URL(request.url).searchParams.get('date');
   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date||''))return respond({error:'invalid_date'},400);
   const [year,month,day]=date.split('-');
   const sourceUrl='https://www.jra.go.jp/keiba/calendar'+year+'/'+year+'/'+month+'/'+month+day+'.html';
@@ -289,6 +290,7 @@ export default {async fetch(request){
    }
    return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。'});
   }catch(error){return respond({date,sourceUrl,races:[],available:false,error:'取得失敗'})}
+ } catch(error){return respond({ok:false,endpoint:'races',error:String(error),hint:'Worker race handler error'},200)}
  }
  if(path==='/weekly'){
   const results={};
