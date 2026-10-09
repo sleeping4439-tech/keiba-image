@@ -170,7 +170,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return respond({ok:true,version:16,racesFix:'table-diagnostics'});
+ if(path==='/health')return respond({ok:true,version:17,racesFix:'regex-syntax-fixed'});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
