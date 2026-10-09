@@ -154,6 +154,25 @@
 const levels=['超高速','高速','標準','やや遅','遅'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
 Object.defineProperties(state,{clock:{get(){return this.clockByTrack[this.track]},set(value){this.clockByTrack[this.track]=value}},load:{get(){return this.loadByTrack[this.track]}},grip:{get(){return this.gripByTrack[this.track]}}});
+// 時計・負荷・直線グリップは端末のブラウザだけに保存する（競馬場別）。
+const SETTINGS_KEY='keiba-track-settings-v1';
+try{
+ const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null');
+ if(saved&&typeof saved==='object'){
+  for(const track of ['東京','京都']){
+   if(levels.includes(saved.clockByTrack?.[track]))state.clockByTrack[track]=saved.clockByTrack[track];
+   for(const segment of ['道中','4角','直線']){
+    const values=saved.loadByTrack?.[track]?.[segment];
+    if(Array.isArray(values)&&values.length===3&&values.every(v=>Number.isInteger(v)&&v>=0&&v<=4))state.loadByTrack[track][segment]=values.slice();
+   }
+   const grip=saved.gripByTrack?.[track];
+   if(Array.isArray(grip)&&grip.length===3&&grip.every(v=>typeof v==='boolean'))state.gripByTrack[track]=grip.slice();
+  }
+ }
+}catch(e){}
+function saveTrackSettings(){
+ try{localStorage.setItem(SETTINGS_KEY,JSON.stringify({clockByTrack:state.clockByTrack,loadByTrack:state.loadByTrack,gripByTrack:state.gripByTrack}))}catch(e){}
+}
 const $=id=>document.getElementById(id);
 const memoByTrack={'東京':'','京都':''};
 for(const track of Object.keys(memoByTrack)){
@@ -222,7 +241,7 @@ function clockSVG(){
 const menu=$('clockMenu'),btn=$('clockButton');
 function menuRender(){menu.innerHTML=levels.map(x=>`<button class="option ${x===state.clock?'selected':''}" data-clock="${x}">${x===state.clock?'✓　':''}${x}</button>`).join('')}
 btn.addEventListener('click',()=>{menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden));menuRender()});
-menu.addEventListener('click',e=>{let b=e.target.closest('[data-clock]');if(!b)return;state.clock=b.dataset.clock;$('clockValue').textContent=state.clock;menu.hidden=true;btn.setAttribute('aria-expanded','false');clockSVG()});
+menu.addEventListener('click',e=>{let b=e.target.closest('[data-clock]');if(!b)return;state.clock=b.dataset.clock;$('clockValue').textContent=state.clock;menu.hidden=true;btn.setAttribute('aria-expanded','false');clockSVG();saveTrackSettings()});
 document.addEventListener('click',e=>{if(!e.target.closest('.selectWrap')){menu.hidden=true;btn.setAttribute('aria-expanded','false')}});
 $('tabs').addEventListener('click',e=>{let b=e.target.closest('[data-track]');if(!b)return;state.track=b.dataset.track;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));$('trackName').textContent=state.track;renderCourseMeta();$('clockValue').textContent=state.clock;clockSVG();renderEditor();renderMemo()});
 $('segments').addEventListener('click',e=>{let b=e.target.closest('[data-segment]');if(!b)return;state.segment=b.dataset.segment;document.querySelectorAll('.segment').forEach(t=>t.classList.toggle('active',t===b));renderEditor()});
@@ -254,9 +273,9 @@ function renderEditor(){
  syncLoadOutputColors();
  drawLoad();
 }
-$('sliders').addEventListener('input',e=>{if(!e.target.matches('input[type=range]'))return;const i=+e.target.dataset.i;const v=+e.target.value;state.load[state.segment][i]=v;$('out'+i).textContent=['なし','軽','やや軽','中','強'][v];const vals=state.load[state.segment];const same=vals.every(x=>x===vals[0]);$('allOut').textContent=same?['なし','軽','やや軽','中','強'][vals[0]]:'個別';if(same)$('all').value=vals[0];paintRanges();syncLoadOutputColors();drawLoad()});
-$('all').addEventListener('input',e=>{const v=+e.target.value;state.load[state.segment]=Array(3).fill(v);for(let i=0;i<3;i++){$('lane'+i).value=v;$('out'+i).textContent=['なし','軽','やや軽','中','強'][v]}$('allOut').textContent=['なし','軽','やや軽','中','強'][v];paintRanges();syncLoadOutputColors();drawLoad()});
-$('grips').addEventListener('change',e=>{let i=['内','中','外'].indexOf(e.target.dataset.lane);if(i>=0)state.grip[i]=e.target.checked;drawLoad()});
+$('sliders').addEventListener('input',e=>{if(!e.target.matches('input[type=range]'))return;const i=+e.target.dataset.i;const v=+e.target.value;state.load[state.segment][i]=v;$('out'+i).textContent=['なし','軽','やや軽','中','強'][v];const vals=state.load[state.segment];const same=vals.every(x=>x===vals[0]);$('allOut').textContent=same?['なし','軽','やや軽','中','強'][vals[0]]:'個別';if(same)$('all').value=vals[0];paintRanges();syncLoadOutputColors();drawLoad();saveTrackSettings()});
+$('all').addEventListener('input',e=>{const v=+e.target.value;state.load[state.segment]=Array(3).fill(v);for(let i=0;i<3;i++){$('lane'+i).value=v;$('out'+i).textContent=['なし','軽','やや軽','中','強'][v]}$('allOut').textContent=['なし','軽','やや軽','中','強'][v];paintRanges();syncLoadOutputColors();drawLoad();saveTrackSettings()});
+$('grips').addEventListener('change',e=>{let i=['内','中','外'].indexOf(e.target.dataset.lane);if(i>=0)state.grip[i]=e.target.checked;drawLoad();saveTrackSettings()});
 function drawLoad(){
  // Match the original tool's course sections and lane order.
  // 道中: 左コーナー→上直線→右コーナー前半
