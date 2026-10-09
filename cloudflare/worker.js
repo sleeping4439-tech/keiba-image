@@ -38,7 +38,10 @@ function extractCondition(html,title,url){
  const weatherMatch=afterHeading.match(/天候\s*[：:]\s*(晴|曇|雨|雪|小雨|小雪)(?=\s|$)/);
  const meetingNumberMatch=meeting[0].match(/第(\d+)回/);
  const meetingDayMatch=meeting[0].match(/競馬\s*第(\d+)日/);
- const railMatch=body.match(/使用コース\s*([A-D])コース(?:\s|[（(])/);
+ // 「芝丈・使用コース・芝の様子」見出しの後にある「使用コース Aコース（…）」を読む。
+ // 先頭の見出しと項目名が重複するため、後ろ側の項目から抽出する。
+ const railSection=body.slice(body.indexOf('芝丈・使用コース・芝の様子'));
+ const railMatch=railSection.match(/使用コース\s*([A-D])\s*コース(?=\s|[（(]|$)/);
  const turf=afterHeading.match(/(?:^|\s)芝\s*(良|稍重|重|不良)(?:\s|$)/);
  if(!turf)return null;
  const year=Number(meeting[1]),month=Number(heading[1]),day=Number(heading[2]);
@@ -139,7 +142,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:11});
+ if(path==='/health')return respond({ok:true,version:12});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
