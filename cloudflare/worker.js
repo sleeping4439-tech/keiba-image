@@ -44,8 +44,17 @@ function extractCondition(html,title,url){
  if(observedDate.getTime()>meetingDate.getTime()||meetingDate.getTime()-observedDate.getTime()>14*86400000)return null;
  const observedAt=year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
  const m=turf;
- return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,moistureFinish:null,moistureCorner:null,
-  note:'馬場状態のみ取得。クッション値・含水率の測定時刻は未確認'};
+ // The turf_line table is distinct from the dirt_line and the cushion reference scale.
+ const turfRow=(html.match(/<tr\b[^>]*\bid=["']turf_line["'][^>]*>([\s\S]*?)<\/tr>/i)||[])[1]||'';
+ const goal=(turfRow.match(/<td\b[^>]*class=["'][^"']*\bgm\b[^"']*["'][^>]*>\s*(\d{1,2}(?:\.\d+)?)\s*<\/td>/i)||[])[1];
+ const corner=(turfRow.match(/<td\b[^>]*class=["'][^"']*\bc4\b[^"']*["'][^>]*>\s*(\d{1,2}(?:\.\d+)?)\s*<\/td>/i)||[])[1];
+ const moistureFinish=goal!==undefined?Number(goal):null;
+ const moistureCorner=corner!==undefined?Number(corner):null;
+ const validMoisture=moistureFinish!==null&&moistureCorner!==null&&moistureFinish>=0&&moistureFinish<=100&&moistureCorner>=0&&moistureCorner<=100;
+ return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,
+  moistureFinish:validMoisture?moistureFinish:null,moistureCorner:validMoisture?moistureCorner:null,
+  moistureMeasuredAt:null,
+  note:validMoisture?'芝含水率はJRA芝専用表から取得。測定時刻は未確認':'馬場状態のみ取得。含水率・クッション値の測定時刻は未確認'};
 }
 async function jraVerified(){
  const pages=await jraDiagnostic();
@@ -65,7 +74,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:5});
+ if(path==='/health')return respond({ok:true,version:6});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -122,7 +131,7 @@ export default {async fetch(request){
  }
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
- return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'馬場状態のみ検証対象。クッション値と含水率は未取得'});
+ return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'クッション値と測定時刻は未取得。芝含水率は公式表から取得'});
 }
  return respond({ok:false,error:'not_found'},404);
 }};
