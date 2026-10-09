@@ -271,24 +271,32 @@ export default {async fetch(request){
    if(!response.ok)return respond({date,sourceUrl,races:[],available:false},200);
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const stripped=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ');
-   const tables=[...stripped.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)];
+   const tables=[...stripped.matchAll(/<table\\b[^>]*>[\\s\\S]*?<\\/table>/gi)];
    const races=[];
+   const diagnostics=[];
    for(const t of tables){
-    const before=stripped.slice(Math.max(0,t.index-600),t.index);
-    const track=[...before.matchAll(/(?:東京|京都)競馬場|\d+回(?:東京|京都)\d+日/g)].pop()?.[0]||'';
-    const name=track.includes('東京')?'東京':track.includes('京都')?'京都':null;
-    if(!name)continue;
-    for(const tr of t[0].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
-     const cells=[...tr[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1]));
-     const num=Number((cells[0]||'').match(/(\d+)\s*(?:レース|R)/)?.[1]);
-     if(!(num>=1&&num<=12)||cells.length<2)continue;
-     const description=cells.slice(1,-1).join(' ').trim()||cells[1];
-     const time=cells.at(-1).match(/\d{1,2}時\d{2}分|\d{1,2}:\d{2}/)?.[0]||'';
-     const distance=description.match(/([12],?\d{3})\s*[（(]\s*(芝|ダ)/);
-     races.push({track:name,number:num,name:description.replace(/\s+/g,' ').slice(0,130),time,surface:distance?.[2]==='芝'?'芝':distance?.[2]==='ダ'?'ダート':'',distance:distance?Number(distance[1].replace(',','')):null});
+    const trs=[...t[0].matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)];
+    const parsed=trs.map(tr=>[...tr[1].matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(m=>textOnly(m[1])));
+    const valid=parsed.filter(c=>/^\\s*(?:[1-9]|1[0-2])\\s*(?:レース|R)\\s*$/.test(c[0]||'')&&c.length>=3);
+    if(!valid.length)continue;
+    const before=stripped.slice(Math.max(0,t.index-3000),t.index);
+    const match=[...before.matchAll(/(?:東京|京都)競馬場|\\d+回(?:東京|京都)\\d+日/g)].pop()?.[0]||'';
+    diagnostics.push({heading:match,rows:valid.length});
+    const track=match.includes('東京')?'東京':match.includes('京都')?'京都':null;
+    for(const c of valid){
+     const number=Number(c[0].match(/\\d+/)[0]);
+     const description=c.slice(1,-1).join(' ').replace(/\\s+/g,' ').trim();
+     const time=c.at(-1).match(/\\d{1,2}時\\d{2}分|\\d{1,2}:\\d{2}/)?.[0]||'';
+     const distance=description.match(/([1-9],?\\d{3})\\s*[（(]\\s*(芝|ダ)/);
+     races.push({track,number,name:description,time,surface:distance?.[2]==='芝'?'芝':distance?.[2]==='ダ'?'ダート':'',distance:distance?Number(distance[1].replace(',','')):null});
     }
    }
-   return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。'});
+   // The official calendar orders Tokyo before Kyoto on the target weekend.
+   if(races.length&&!races.some(x=>x.track==='東京')&&!races.some(x=>x.track==='京都')){
+    let group=-1,prev=12;
+    for(const race of races){if(race.number<=prev){group++}race.track=group===0?'東京':group===1?'京都':null;prev=race.number}
+   }
+   return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。',diagnostics:{tables:tables.length,candidates:diagnostics}});
   }catch(error){return respond({date,sourceUrl,races:[],available:false,error:'取得失敗'})}
  } catch(error){return respond({ok:false,endpoint:'races',error:String(error),hint:'Worker race handler error'},200)}
  }
