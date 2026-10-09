@@ -335,39 +335,21 @@ async function updateWind(){
 document.getElementById('tabs').addEventListener('click',showLiveWind);
 updateWind();
 
-const WEATHER_API='https://keiba-track-data.sleeping4439.workers.dev/weather';
-let windByTrack={};
-function showLiveWind(){
- const d=windByTrack[state.track],target=document.getElementById('windLive');
- if(!target)return;
- if(!d||!Number.isFinite(d.speed)||!Number.isFinite(d.direction)){target.textContent='風：未取得';return;}
- const points=['北','北東','東','南東','南','南西','西','北西'];
- target.textContent='風：'+points[Math.round(d.direction/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
-}
-async function updateWind(){
- try{
-  const response=await fetch(WEATHER_API,{cache:'no-store'});
-  if(!response.ok)throw Error('weather unavailable');
-  windByTrack=(await response.json()).tracks||{};
- }catch{windByTrack={};}
- showLiveWind();
-}
-document.getElementById('tabs').addEventListener('click',showLiveWind);
-updateWind();
-
 const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
 let jraTracks={};
 function renderJRA(){
  const x=jraTracks[state.track],el=document.getElementById('jraLivePanel');
  if(!el)return;
  if(!x||!['良','稍重','重','不良'].includes(x.condition)||!/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'')){
-  el.textContent='JRA馬場状態：未取得';return;
+  el.textContent='JRA公式馬場データ：未取得';return;
  }
- el.textContent='JRA '+state.track+'｜芝 '+x.condition+'｜公表日 '+x.observedAt+
- '｜クッション値 '+(Number.isFinite(x.cushion)?x.cushion:'未取得')+
- '｜含水率 '+(Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)?
- x.moistureFinish+'% / '+x.moistureCorner+'%':'未取得');
+ const measured=(v)=>typeof v==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)?v.slice(5,10).replace('-','/')+' '+v.slice(11,16):'時刻未取得';
+ const cushion=Number.isFinite(x.cushion)?x.cushion+'（'+measured(x.cushionMeasuredAt)+'測定）':'未取得';
+ const moisture=Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)?
+ 'ゴール前 '+x.moistureFinish+'% / 4角 '+x.moistureCorner+'%（'+measured(x.moistureMeasuredAt)+'測定）':'未取得';
+ el.textContent='JRA公式｜'+state.track+' 芝 '+x.condition+'｜公表日 '+x.observedAt+'｜クッション値 '+cushion+'｜芝含水率 '+moisture;
 }
+
 async function refreshJRA(){
  try{
   const res=await fetch(JRA_URL,{cache:'no-store'});
