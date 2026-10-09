@@ -271,23 +271,23 @@ export default {async fetch(request){
    if(!response.ok)return respond({date,sourceUrl,races:[],available:false},200);
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const stripped=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ');
-   const tables=[...stripped.matchAll(/<table\\b[^>]*>[\\s\\S]*?<\\/table>/gi)];
+   const tables=[...stripped.matchAll(/<table\b[^>]*>[\s\S]*?<\/table>/gi)];
    const races=[];
    const diagnostics=[];
    for(const t of tables){
-    const trs=[...t[0].matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)];
-    const parsed=trs.map(tr=>[...tr[1].matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(m=>textOnly(m[1])));
-    const valid=parsed.filter(c=>/^\\s*(?:[1-9]|1[0-2])\\s*(?:レース|R)\\s*$/.test(c[0]||'')&&c.length>=3);
+    const trs=[...t[0].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+    const parsed=trs.map(tr=>[...tr[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1])));
+    const valid=parsed.filter(c=>/^\s*(?:[1-9]|1[0-2])\s*(?:レース|R)\s*$/.test(c[0]||'')&&c.length>=3);
     if(!valid.length)continue;
     const before=stripped.slice(Math.max(0,t.index-3000),t.index);
-    const match=[...before.matchAll(/(?:東京|京都)競馬場|\\d+回(?:東京|京都)\\d+日/g)].pop()?.[0]||'';
+    const match=[...before.matchAll(/(?:東京|京都)競馬場|\d+回(?:東京|京都)\d+日/g)].pop()?.[0]||'';
     diagnostics.push({heading:match,rows:valid.length});
     const track=match.includes('東京')?'東京':match.includes('京都')?'京都':null;
     for(const c of valid){
-     const number=Number(c[0].match(/\\d+/)[0]);
-     const description=c.slice(1,-1).join(' ').replace(/\\s+/g,' ').trim();
-     const time=c.at(-1).match(/\\d{1,2}時\\d{2}分|\\d{1,2}:\\d{2}/)?.[0]||'';
-     const distance=description.match(/([1-9],?\\d{3})\\s*[（(]\\s*(芝|ダ)/);
+     const number=Number(c[0].match(/\d+/)[0]);
+     const description=c.slice(1,-1).join(' ').replace(/\s+/g,' ').trim();
+     const time=c.at(-1).match(/\d{1,2}時\d{2}分|\d{1,2}:\d{2}/)?.[0]||'';
+     const distance=description.match(/([1-9],?\d{3})\s*[（(]\s*(芝|ダ)/);
      races.push({track,number,name:description,time,surface:distance?.[2]==='芝'?'芝':distance?.[2]==='ダ'?'ダート':'',distance:distance?Number(distance[1].replace(',','')):null});
     }
    }
