@@ -318,6 +318,7 @@ export default {async fetch(request){
     const notesStart=body.indexOf('週間情報'),notesEnd=body.indexOf('芝丈・使用コース・芝の様子',notesStart);
     const notesText=notesStart>=0?body.slice(notesStart,notesEnd>notesStart?notesEnd:notesStart+1500):'';
     const updates=[...notesText.matchAll(/(\d{1,2}月\d{1,2}日)\s*(芝コース|ダートコース)\s*([^。]{5,180}。)/g)].slice(0,12).map(m=>({date:m[1],course:m[2],text:m[3]}));
+    if(!track) return;
     results[track]={sourceUrl:url,heading:(body.match(/第\d+回\s*[^ ]*?競馬\s*第\d+日[（(][^)）]+[)）]/)||[])[0]||null,rows,updates,available:rows.length>0};
    }catch(error){results[track]={sourceUrl:url,available:false,error:'取得に失敗しました'}}
   }));
