@@ -47,7 +47,7 @@
 .windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
 @media(max-width:600px){.windArrow{stroke-width:7}}
 </style></head><body><main class="app"><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
-<div id="jraLivePanel" role="status">JRA馬場状態：未取得</div><div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
+<div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
 <defs>
@@ -87,12 +87,12 @@
 <path d="M302 325 H762" stroke="#aaa" stroke-width="1.8"/>
 <g text-anchor="middle" fill="#222">
 <text x="354" y="351" font-size="16">クッション値</text>
-<text x="354" y="401" font-size="43">10.0</text>
+<text id="jraCushion" x="354" y="401" font-size="43">—</text>
 <text x="506" y="351" font-size="16">含水率</text>
-<text x="506" y="379" font-size="22">G前 15.5%</text>
-<text x="506" y="408" font-size="22">4角 13.5%</text>
+<text id="jraMoistureFinish" x="506" y="379" font-size="22">G前 —</text>
+<text id="jraMoistureCorner" x="506" y="408" font-size="22">4角 —</text>
 <text x="657" y="351" font-size="16">コンディション</text>
-<text x="657" y="401" font-size="43">稍</text>
+<text id="jraCondition" x="657" y="401" font-size="43">—</text>
 </g>
 </svg>
 </section>
@@ -152,7 +152,7 @@
 <div class="divider"></div><div class="line"><div class="heading">負荷設定</div><div class="segments" id="segments"><button class="segment active" data-segment="道中">道中</button><button class="segment" data-segment="4角">4角</button><button class="segment" data-segment="直線">直線</button></div></div>
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><small>この端末・ブラウザに自動保存されます</small></div>
-<div class="note">※デザイン・操作確認用。日付は端末の当日を表示（取得日ではありません）。東京の開催・天気・使用コース情報は表示例であり、ライブ取得ではありません。外部データ取得と保存は未接続。京都・福島のコース形状は後日差し替えます。</div></section></main>
+<div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースは未取得。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
@@ -338,16 +338,17 @@ updateWind();
 const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
 let jraTracks={};
 function renderJRA(){
- const x=jraTracks[state.track],el=document.getElementById('jraLivePanel');
- if(!el)return;
- if(!x||!['良','稍重','重','不良'].includes(x.condition)||!/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'')){
-  el.textContent='JRA公式馬場データ：未取得';return;
- }
- const measured=(v)=>typeof v==='string'&&/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)?v.slice(5,10).replace('-','/')+' '+v.slice(11,16):'時刻未取得';
- const cushion=Number.isFinite(x.cushion)?x.cushion+'（'+measured(x.cushionMeasuredAt)+'測定）':'未取得';
- const moisture=Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)?
- 'ゴール前 '+x.moistureFinish+'% / 4角 '+x.moistureCorner+'%（'+measured(x.moistureMeasuredAt)+'測定）':'未取得';
- el.textContent='JRA公式｜'+state.track+' 芝 '+x.condition+'｜公表日 '+x.observedAt+'｜クッション値 '+cushion+'｜芝含水率 '+moisture;
+ const x=jraTracks[state.track];
+ const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
+ $('jraCushion').textContent=valid&&Number.isFinite(x.cushion)?x.cushion.toFixed(1):'—';
+ $('jraMoistureFinish').textContent='G前 '+(valid&&Number.isFinite(x.moistureFinish)?x.moistureFinish.toFixed(1)+'%':'—');
+ $('jraMoistureCorner').textContent='4角 '+(valid&&Number.isFinite(x.moistureCorner)?x.moistureCorner.toFixed(1)+'%':'—');
+ $('jraCondition').textContent=valid?x.condition:'—';
+ if(valid){
+  const [year,month,day]=x.observedAt.split('-').map(Number);
+  const weekday=['日','月','火','水','木','金','土'][new Date(Date.UTC(year,month-1,day)).getUTCDay()];
+  $('infoDate').textContent=month+'/'+day+' '+weekday;
+ }else $('infoDate').textContent='—';
 }
 
 async function refreshJRA(){
