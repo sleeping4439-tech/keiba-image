@@ -135,7 +135,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:9});
+ if(path==='/health')return respond({ok:true,version:10});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -234,7 +234,9 @@ export default {async fetch(request){
  }
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
- return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'公式測定データを取得。未取得項目はnull'});
+ const complete=['東京','京都'].every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
+ const status=complete?'complete':Object.keys(tracks).length?'partial':'unavailable';
+ return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status,reason:complete?'東京・京都の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'});
 }
  return respond({ok:false,error:'not_found'},404);
 }};
