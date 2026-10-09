@@ -334,4 +334,24 @@ async function updateWind(){
 }
 document.getElementById('tabs').addEventListener('click',showLiveWind);
 updateWind();
+
+const WEATHER_API='https://keiba-track-data.sleeping4439.workers.dev/weather';
+let windByTrack={};
+function showLiveWind(){
+ const d=windByTrack[state.track],target=document.getElementById('windLive');
+ if(!target)return;
+ if(!d||!Number.isFinite(d.speed)||!Number.isFinite(d.direction)){target.textContent='風：未取得';return;}
+ const points=['北','北東','東','南東','南','南西','西','北西'];
+ target.textContent='風：'+points[Math.round(d.direction/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
+}
+async function updateWind(){
+ try{
+  const response=await fetch(WEATHER_API,{cache:'no-store'});
+  if(!response.ok)throw Error('weather unavailable');
+  windByTrack=(await response.json()).tracks||{};
+ }catch{windByTrack={};}
+ showLiveWind();
+}
+document.getElementById('tabs').addEventListener('click',showLiveWind);
+updateWind();
 </script></body></html>
