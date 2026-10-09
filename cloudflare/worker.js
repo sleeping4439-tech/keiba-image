@@ -259,6 +259,29 @@ export default {async fetch(request){
   }));
   return respond({checkedAt:new Date().toISOString(),results});
  }
+ if(path==='/weekly'){
+  const results={};
+  await Promise.all(JRA_PAGES.map(async file=>{
+   const url=BASE+file;
+   try{
+    const response=await fetch(url);
+    if(!response.ok)return;
+    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+    const title=textOnly((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
+    const track=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
+    if(!['東京','京都'].includes(track))return;
+    const section=html.match(/週間情報[\s\S]{0,2000}?(<table\b[\s\S]*?<\/table>)/i);
+    const table=section?.[1]||'';
+    const rows=[...table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(c=>textOnly(c[1].replace(/<img\b[^>]*alt=["']([^"']*)["'][^>]*>/gi,'$1'))));
+    const body=textOnly(html);
+    const notesStart=body.indexOf('週間情報'),notesEnd=body.indexOf('芝丈・使用コース・芝の様子',notesStart);
+    const notesText=notesStart>=0?body.slice(notesStart,notesEnd>notesStart?notesEnd:notesStart+1500):'';
+    const updates=[...notesText.matchAll(/(\d{1,2}月\d{1,2}日)\s*(芝コース|ダートコース)\s*([^。]{5,180}。)/g)].slice(0,12).map(m=>({date:m[1],course:m[2],text:m[3]}));
+    results[track]={sourceUrl:url,heading:(body.match(/第\d+回\s*[^ ]*?競馬\s*第\d+日[（(][^)）]+[)）]/)||[])[0]||null,rows,updates,available:rows.length>0};
+   }catch(error){results[track]={sourceUrl:url,available:false,error:'取得に失敗しました'}}
+  }));
+  return respond({source:'JRA',updatedAt:new Date().toISOString(),tracks:results});
+ }
  if(path==='/weather'){
   const result={updatedAt:new Date().toISOString(),tracks:{}};
   await Promise.all(Object.keys(LOCATIONS).map(async name=>{
