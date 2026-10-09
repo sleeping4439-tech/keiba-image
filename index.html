@@ -71,6 +71,8 @@
   <g class="windArrow" style="animation-delay:-1.35s" transform="translate(952 253)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-1.9s" transform="translate(888 282)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
   <g class="windArrow" style="animation-delay:-2.4s" transform="translate(832 265)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
+  <g class="windArrow windArrowBottom" style="animation-delay:-.65s" transform="translate(175 505)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
+  <g class="windArrow windArrowBottom" style="animation-delay:-1.4s" transform="translate(825 505)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
 </g>
 <g fill="#222">
 <!-- Title centered on the horizontal divider (center x=500). -->
@@ -329,7 +331,7 @@ function showLiveWind(){
   if(!valid)target.textContent='風：未取得';
   else{
    const points=['北','北東','東','南東','南','南西','西','北西'];
-   target.textContent='風：'+points[Math.round(((d.direction%360)+360)%360/45)%8]+' '+d.speed.toFixed(1)+'m/s（近傍推定・Open-Meteo）';
+   target.textContent='風：'+points[Math.round(((d.direction%360)+360)%360/45)%8]+' '+d.speed.toFixed(1)+'m/s（Open-Meteo）';
   }
  }
  if(!field)return;
@@ -348,14 +350,15 @@ function showLiveWind(){
  const along=Math.cos(difference);
  const relative=along>0.38?'追い風':along< -0.38?'向かい風':'横風';
  if(target)target.textContent+='｜ゴール前 '+relative+'（推定）';
- const positions=[[70,190],[122,218],[48,253],[112,282],[168,265],[830,190],[878,218],[952,253],[888,282],[832,265]];
+ const positions=[[70,190],[122,218],[48,253],[112,282],[168,265],[830,190],[878,218],[952,253],[888,282],[832,265],[175,505],[825,505]];
  // 風速1m/sごとに左右それぞれ1本。最大5本ずつ（計10本）。
  // 0.1〜0.9m/sも微風として1本、0m/sは非表示。
  const countPerSide=Math.min(5,Math.ceil(Math.max(0,d.speed)));
  field.querySelectorAll('.windArrow').forEach((arrow,i)=>{
   const [x,y]=positions[i];
   const sideIndex=i%5;
-  arrow.style.display=sideIndex<countPerSide?'':'none';
+  // 下側の2本は、微風でも風向が分かるよう左右1本ずつ補助表示する。
+  arrow.style.display=(i>=10?countPerSide>0:sideIndex<countPerSide)?'':'none';
   arrow.setAttribute('transform','translate('+x+' '+y+') rotate('+angle+')');
   arrow.style.animationDuration=(2.6+Math.min(2,Math.max(0,4-d.speed)*0.25)).toFixed(2)+'s';
  });
