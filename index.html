@@ -50,8 +50,10 @@
 .appTitle{text-align:center;font-size:29px;font-weight:800;letter-spacing:.09em;color:#245b3b;margin:6px 0 17px;line-height:1.35}
 
 .appLogo{display:block;width:clamp(165px,36vw,260px);height:auto;margin:0 auto}.appTitle{margin:0 0 14px}
+
+.weeklyLinks{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}.weeklyLinks #viewToggle{margin:0}.weeklyLinks a{font-size:13px;font-weight:600;color:#43845f;text-decoration:underline;padding:6px 3px}
 </style></head><body><main class="app"><h1 class="appTitle"><img src="./yubaba-logo.svg?v=aligned-right5" alt="ゆ馬場" class="appLogo"></h1><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
-<div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
+<div class="wind"><span id="windLive">風：取得中…</span> <span class="weeklyLinks"><button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button><a id="weeklyLink" href="./weekly.html?track=東京">週間情報 →</a></span></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
 <defs>
@@ -247,7 +249,7 @@ function menuRender(){menu.innerHTML=levels.map(x=>`<button class="option ${x===
 btn.addEventListener('click',()=>{menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden));menuRender()});
 menu.addEventListener('click',e=>{let b=e.target.closest('[data-clock]');if(!b)return;state.clock=b.dataset.clock;$('clockValue').textContent=state.clock;menu.hidden=true;btn.setAttribute('aria-expanded','false');clockSVG();saveTrackSettings()});
 document.addEventListener('click',e=>{if(!e.target.closest('.selectWrap')){menu.hidden=true;btn.setAttribute('aria-expanded','false')}});
-$('tabs').addEventListener('click',e=>{let b=e.target.closest('[data-track]');if(!b)return;state.track=b.dataset.track;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));$('trackName').textContent=state.track;renderCourseMeta();$('clockValue').textContent=state.clock;clockSVG();renderEditor();renderMemo()});
+$('tabs').addEventListener('click',e=>{let b=e.target.closest('[data-track]');if(!b)return;state.track=b.dataset.track;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));$('trackName').textContent=state.track;renderCourseMeta();$('clockValue').textContent=state.clock;clockSVG();renderEditor();renderMemo();$('weeklyLink').href='./weekly.html?track='+encodeURIComponent(state.track)});
 $('segments').addEventListener('click',e=>{let b=e.target.closest('[data-segment]');if(!b)return;state.segment=b.dataset.segment;document.querySelectorAll('.segment').forEach(t=>t.classList.toggle('active',t===b));renderEditor()});
 function paintRange(el){
  const pct=100*(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min)||1);
