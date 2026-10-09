@@ -349,8 +349,13 @@ function showLiveWind(){
  const relative=along>0.38?'追い風':along< -0.38?'向かい風':'横風';
  if(target)target.textContent+='｜ゴール前 '+relative+'（推定）';
  const positions=[[70,190],[122,218],[48,253],[112,282],[168,265],[830,190],[878,218],[952,253],[888,282],[832,265]];
+ // 風速1m/sごとに左右それぞれ1本。最大5本ずつ（計10本）。
+ // 0.1〜0.9m/sも微風として1本、0m/sは非表示。
+ const countPerSide=Math.min(5,Math.ceil(Math.max(0,d.speed)));
  field.querySelectorAll('.windArrow').forEach((arrow,i)=>{
   const [x,y]=positions[i];
+  const sideIndex=i%5;
+  arrow.style.display=sideIndex<countPerSide?'':'none';
   arrow.setAttribute('transform','translate('+x+' '+y+') rotate('+angle+')');
   arrow.style.animationDuration=(2.6+Math.min(2,Math.max(0,4-d.speed)*0.25)).toFixed(2)+'s';
  });
