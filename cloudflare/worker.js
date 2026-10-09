@@ -74,7 +74,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:6});
+ if(path==='/health')return respond({ok:true,version:7});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -121,6 +121,31 @@ export default {async fetch(request){
    }catch(error){results.push({course:p.course,error:String(error)})}
   }
   return respond({checkedAt:new Date().toISOString(),results,note:'Diagnostic excerpts only; no measurements inferred from reference scales'});
+ }
+ if(path==='/script-diagnostics'){
+  const urls=[BASE+'_js/baba2025.js',BASE+'_js/common.js'];
+  const results=await Promise.all(urls.map(async url=>{
+   try{
+    const res=await fetch(url);
+    const raw=await res.arrayBuffer();
+    const js=new TextDecoder('utf-8').decode(raw);
+    const terms=['cushion_list','moist_list','ajax','fetch(','json','cushion','moist','csv'];
+    const excerpts={};
+    for(const term of terms){
+     const positions=[];let offset=0;
+     while(positions.length<5){
+      const at=js.toLowerCase().indexOf(term.toLowerCase(),offset);
+      if(at<0)break;
+      positions.push(js.slice(Math.max(0,at-240),Math.min(js.length,at+420)));
+      offset=at+term.length;
+     }
+     excerpts[term]=positions;
+    }
+    const paths=[...new Set([...js.matchAll(/["']([^"' ]{1,200}\.(?:json|csv|xml|php|js)(?:\?[^"']*)?)["']/gi)].map(m=>m[1]))].slice(0,60);
+    return {url,status:res.status,length:js.length,excerpts,paths};
+   }catch(error){return {url,error:String(error)}}
+  }));
+  return respond({checkedAt:new Date().toISOString(),results});
  }
  if(path==='/weather'){
   const result={updatedAt:new Date().toISOString(),tracks:{}};
