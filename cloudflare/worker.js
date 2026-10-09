@@ -56,17 +56,78 @@ function extractCondition(html,title,url){
   moistureMeasuredAt:null,
   note:validMoisture?'芝含水率はJRA芝専用表から取得。測定時刻は未確認':'馬場状態のみ取得。含水率・クッション値の測定時刻は未確認'};
 }
+
+function measuredDate(raw,year){
+ const m=raw.match(/(\d{1,2})月(\d{1,2})日(?:[（(][^）)]*[）)])?\s*(\d{1,2})時(\d{1,2})分/);
+ if(!m)return null;
+ const [month,day,hour,minute]=m.slice(1).map(Number);
+ if(hour>23||minute>59)return null;
+ const d=new Date(Date.UTC(year,month-1,day));
+ if(d.getUTCFullYear()!==year||d.getUTCMonth()!==month-1||d.getUTCDate()!==day)return null;
+ return year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0')+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00+09:00';
+}
+function extractSourceMeasurements(html,course,year,type,conditionDate){
+ const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
+ if(!id)return null;
+ const region=(html.match(new RegExp('<div\\b[^>]*\\bid=["\\x27]'+id+'["\\x27][^>]*>([\\s\\S]*?)(?=<div\\b[^>]*\\bid=["\\x27]rc[A-Z]["\\x27]|$)','i'))||[])[1]||'';
+ const units=[...region.matchAll(/<div\s+class=["']unit["']\s*>([\s\S]*?)(?=<div\s+class=["']unit["']|$)/gi)];
+ const entries=[];
+ for(const unit of units){
+  const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\/div>/i)||[])[1]||'';
+  const time=measuredDate(raw,year);
+  if(!time||time.slice(0,10)>conditionDate)continue;
+  if(type==='cushion'){
+   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\/div>/i)||[])[1];
+   if(v===undefined)continue;
+   const cushion=Number(v);
+   if(cushion>=0&&cushion<=30)entries.push({time,cushion});
+  }else{
+   const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\/div>/i)||[])[1]||'';
+   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
+   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
+   if(g===undefined||c===undefined)continue;
+   const finish=Number(g),corner=Number(c);
+   if(finish<=100&&corner<=100)entries.push({time,finish,corner});
+  }
+ }
+ entries.sort((a,b)=>b.time.localeCompare(a.time));
+ return entries[0]||null;
+}
 async function jraVerified(){
  const pages=await jraDiagnostic();
+ const [cushionResult,moistResult]=await Promise.allSettled(['_data_cushion.html','_data_moist.html'].map(async file=>{
+  const res=await fetch(BASE+file);
+  if(!res.ok)throw Error(file+' HTTP '+res.status);
+  return new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+ }));
+ const cushionHTML=cushionResult.status==='fulfilled'?cushionResult.value:null;
+ const moistHTML=moistResult.status==='fulfilled'?moistResult.value:null;
  const tracks={};
  for(const page of pages){
-  if(!page.course||!['東京','京都'].includes(page.course)||page.status!==200)continue;
+  if(!['東京','京都'].includes(page.course)||page.status!==200)continue;
   try{
    const response=await fetch(page.url);
    if(!response.ok)continue;
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const x=extractCondition(html,page.title,page.url);
-   if(x&&(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt))tracks[x.course]=x;
+   if(!x)continue;
+   const year=Number(x.observedAt.slice(0,4));
+   const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',x.observedAt):null;
+   const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',x.observedAt):null;
+   x.cushion=c?.cushion??null;
+   x.cushionMeasuredAt=c?.time??null;
+   if(m){
+    x.moistureFinish=m.finish;
+    x.moistureCorner=m.corner;
+    x.moistureMeasuredAt=m.time;
+   }else{
+    // Do not label a value as measured without its measurement time.
+    x.moistureFinish=null;
+    x.moistureCorner=null;
+    x.moistureMeasuredAt=null;
+   }
+   x.note='JRA公式測定データ。測定日時は日本標準時。未取得の値はnull';
+   if(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt)tracks[x.course]=x;
   }catch{}
  }
  return tracks;
@@ -74,7 +135,7 @@ async function jraVerified(){
 
 export default {async fetch(request){
  const path=new URL(request.url).pathname;
- if(path==='/health')return respond({ok:true,version:8});
+ if(path==='/health')return respond({ok:true,version:9});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/parse-diagnostics'){
@@ -173,7 +234,7 @@ export default {async fetch(request){
  }
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
- return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'クッション値と測定時刻は未取得。芝含水率は公式表から取得'});
+ return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status:Object.keys(tracks).length?'partial':'unavailable',reason:'公式測定データを取得。未取得項目はnull'});
 }
  return respond({ok:false,error:'not_found'},404);
 }};
