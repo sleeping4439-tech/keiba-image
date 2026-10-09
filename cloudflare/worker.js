@@ -30,8 +30,8 @@ function extractCondition(html,title,url){
  const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
  if(!['東京','京都'].includes(course))return null;
  const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
- const meeting=body.match(/第\d+回\s*[^ ]{1,15}競馬\s*第\d+日\s*[（(]\s*(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
- const section=body.match(/馬場状態\s*[（(]\s*(\d{1,2})月\s*(\d{1,2})日[^）)]*[）)]([\s\S]{0,500})/);
+ const meeting=body.match(/第\d+回\s*[^ ]{1,15}競馬\s*第\d+日(?:前日)?\s*[（(]\s*(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+ const section=body.match(/馬場状態\s*[（(]\s*(\d{1,2})月\s*(\d{1,2})日[^\s]{0,30}?\s*(?:正午|午前|午後|\d{1,2}時)[^）]*[）)]([\s\S]{0,500})/);
  if(!meeting||!section)return null;
  const turf=section[3].match(/(?:^|\s)芝\s*(良|稍重|重|不良)(?:\s|$)/);
  if(!turf)return null;
