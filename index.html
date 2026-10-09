@@ -47,7 +47,7 @@
 .windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
 @media(max-width:600px){.windArrow{stroke-width:7}}
 </style></head><body><main class="app"><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
-<div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
+<div id="jraLivePanel" role="status">JRA馬場状態：未取得</div><div class="wind"><span id="windLive">風：取得中…</span> <button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
 <defs>
@@ -354,4 +354,29 @@ async function updateWind(){
 }
 document.getElementById('tabs').addEventListener('click',showLiveWind);
 updateWind();
+
+const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
+let jraTracks={};
+function renderJRA(){
+ const x=jraTracks[state.track],el=document.getElementById('jraLivePanel');
+ if(!el)return;
+ if(!x||!['良','稍重','重','不良'].includes(x.condition)||!/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'')){
+  el.textContent='JRA馬場状態：未取得';return;
+ }
+ el.textContent='JRA '+state.track+'｜芝 '+x.condition+'｜公表日 '+x.observedAt+
+ '｜クッション値 '+(Number.isFinite(x.cushion)?x.cushion:'未取得')+
+ '｜含水率 '+(Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)?
+ x.moistureFinish+'% / '+x.moistureCorner+'%':'未取得');
+}
+async function refreshJRA(){
+ try{
+  const res=await fetch(JRA_URL,{cache:'no-store'});
+  if(!res.ok)throw Error('unavailable');
+  const body=await res.json();
+  jraTracks=body.schemaVersion===1&&body.tracks?body.tracks:{};
+ }catch{jraTracks={};}
+ renderJRA();
+}
+document.getElementById('tabs').addEventListener('click',renderJRA);
+refreshJRA();
 </script></body></html>
