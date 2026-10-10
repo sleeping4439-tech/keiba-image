@@ -339,9 +339,9 @@ export default {async fetch(request){
    const response=await fetch(u.toString(),{redirect:'follow'});
    if(!response.ok)return respond({ok:false,httpStatus:response.status},200);
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
-   const plain=html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi,' ').replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/g,' ').replace(/\\s+/g,' ').trim();
+   const plain=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/g,' ').replace(/\s+/g,' ').trim();
    const at=plain.indexOf('ハロンタイム'),win=plain.indexOf('着順');
-   return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\\d{2}年[^]{0,100}?\\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\\s*[\\d,，]+\\s*メートル\\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length});
+   return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\d{2}年[^]{0,100}?\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\s*[\d,，]+\s*メートル\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length});
   }catch(e){return respond({ok:false,error:String(e)})}
  }
  if(path==='/races'){
