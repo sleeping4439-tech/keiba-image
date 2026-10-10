@@ -52,7 +52,7 @@
 .appLogo{display:block;width:clamp(165px,36vw,260px);height:auto;margin:0 auto}.appTitle{margin:0 0 14px}
 
 .weeklyLinks{display:inline-flex;flex-direction:row;align-items:center;gap:12px}.weeklyLinks #viewToggle{margin:0}.weeklyLinks a{font-size:13px;font-weight:600;color:#43845f;text-decoration:underline;padding:6px 3px}
-.dateChoice{position:absolute;left:30%;top:39%;z-index:10;background:white;border:1px solid #d8ded8;border-radius:10px;box-shadow:0 5px 20px #0003;padding:5px;min-width:120px}.dateChoice[hidden]{display:none}.dateChoice button{display:block;width:100%;padding:9px 13px;text-align:left;border:0;background:white;border-radius:7px;font-weight:650;font-size:14px;cursor:pointer}.dateChoice button:hover,.dateChoice button[aria-selected="true"]{background:#e8f4eb}.dateArrow{cursor:pointer;outline:none}.dateArrow:focus-visible path{stroke:#bf3327;stroke-width:5}</style></head><body><main class="app"><h1 class="appTitle"><img src="./yubaba-logo.svg?v=aligned-right5" alt="ゆ馬場" class="appLogo"></h1><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
+.dateChoice{position:absolute;left:30%;top:39%;z-index:10;background:white;border:1px solid #d8ded8;border-radius:10px;box-shadow:0 5px 20px #0003;padding:5px;min-width:120px}.dateChoice[hidden]{display:none}.dateChoice button{display:block;width:100%;padding:9px 13px;text-align:left;border:0;background:white;border-radius:7px;font-weight:650;font-size:14px;cursor:pointer}.dateChoice button:hover,.dateChoice button[aria-selected="true"]{background:#e8f4eb}.dateArrow{cursor:pointer;outline:none}.dateArrow:focus-visible path{stroke:#bf3327;stroke-width:5}.clockMemoButton{margin-left:8px;width:34px;height:34px;border:1px solid #d5ded7;border-radius:9px;background:#fff;color:#38744f;cursor:pointer;font-size:17px;vertical-align:middle}.clockMemoButton.hasMemo{background:#eaf5ed;border-color:#65a779}.clockMemoButton:focus-visible{outline:2px solid #43845f;outline-offset:2px}.clockMemoDialog{border:1px solid #d5ded7;border-radius:14px;padding:20px;width:min(420px,calc(100vw - 32px));box-shadow:0 12px 36px #0003;color:#242424}.clockMemoDialog::backdrop{background:#0005}.clockMemoDialog h2{font-size:17px;margin:0 0 7px}.clockMemoDialog p{font-size:12px;color:#777;margin:0 0 12px}.clockMemoDialog textarea{display:block;width:100%;min-height:130px;resize:vertical;border:1px solid #cbd8ce;border-radius:9px;padding:11px;font:inherit;box-sizing:border-box}.clockMemoDialog .memoClose{display:block;margin:12px 0 0 auto;border:0;border-radius:8px;background:#e9f2eb;padding:9px 16px;color:#245b3b;font-weight:700;cursor:pointer}</style></head><body><main class="app"><h1 class="appTitle"><img src="./yubaba-logo.svg?v=aligned-right5" alt="ゆ馬場" class="appLogo"></h1><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
 <div class="wind"><span id="windLive">風：取得中…</span> <span class="weeklyLinks"><a id="weeklyLink" href="./weekly.html?track=東京">週間情報 →</a><button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></span></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
@@ -151,11 +151,12 @@
   <div style="font-size:10px;color:#83988d;margin-top:4px">JRA公式図を参考にしたSVG図です。外部画像の読み込みは不要です。</div>
 </div>
 </section>
-<section class="panel" id="controlsPanel"><div class="line"><div class="heading">時計レベル</div><div class="selectWrap"><button id="clockButton" class="selectButton" aria-expanded="false"><span id="clockValue">超高速</span><span>⌄</span></button><div class="menu" id="clockMenu" hidden></div></div></div>
+<section class="panel" id="controlsPanel"><div class="line"><div class="heading">時計レベル</div><div class="selectWrap"><button id="clockButton" class="selectButton" aria-expanded="false"><span id="clockValue">超高速</span><span>⌄</span></button><div class="menu" id="clockMenu" hidden></div></div><button type="button" class="clockMemoButton" id="clockMemoButton" aria-label="時計レベルのメモを開く" title="日付別メモ">✎</button></div>
 <div class="divider"></div><div class="line"><div class="heading">負荷設定</div><div class="segments" id="segments"><button class="segment active" data-segment="道中">道中</button><button class="segment" data-segment="4角">4角</button><button class="segment" data-segment="直線">直線</button></div></div>
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><small>この端末・ブラウザに自動保存されます</small><div style="margin-top:14px"><a href="./races.html" style="font-weight:700;color:#247448;text-decoration:none">レース一覧 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
+<dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
@@ -180,6 +181,16 @@ function saveTrackSettings(){
  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify({clockByTrack:state.clockByTrack,loadByTrack:state.loadByTrack,gripByTrack:state.gripByTrack}))}catch(e){}
 }
 const $=id=>document.getElementById(id);
+// The date-specific clock memo is separate from the existing per-track memo.
+const clockMemoKey=(track,date)=>'keiba-clock-memo-v1:'+track+':'+date;
+const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const memoDateByTrack={};
+function activeClockMemoDate(){return memoDateByTrack[state.track]||localDate()}
+function updateClockMemo(){const key=clockMemoKey(state.track,activeClockMemoDate());let value='';try{value=localStorage.getItem(key)||''}catch(e){}$('clockMemoText').value=value;$('clockMemoDate').textContent=state.track+'｜'+activeClockMemoDate();$('clockMemoButton').classList.toggle('hasMemo',!!value.trim());}
+$('clockMemoButton').addEventListener('click',()=>{updateClockMemo();$('clockMemoDialog').showModal();$('clockMemoText').focus()});
+$('clockMemoClose').addEventListener('click',()=>$('clockMemoDialog').close());
+$('clockMemoText').addEventListener('input',e=>{try{localStorage.setItem(clockMemoKey(state.track,activeClockMemoDate()),e.target.value)}catch(err){}$('clockMemoButton').classList.toggle('hasMemo',!!e.target.value.trim())});
+updateClockMemo();
 const memoByTrack={'東京':'','京都':''};
 for(const track of Object.keys(memoByTrack)){
  try{memoByTrack[track]=localStorage.getItem('keiba-memo-'+track)||''}catch(e){}
@@ -244,12 +255,13 @@ function clockSVG(){
  }
  $('clockMarks').innerHTML=s;
 }
+$('clockValue').textContent=state.clock;
 const menu=$('clockMenu'),btn=$('clockButton');
 function menuRender(){menu.innerHTML=levels.map(x=>`<button class="option ${x===state.clock?'selected':''}" data-clock="${x}">${x===state.clock?'✓　':''}${x}</button>`).join('')}
 btn.addEventListener('click',()=>{menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden));menuRender()});
 menu.addEventListener('click',e=>{let b=e.target.closest('[data-clock]');if(!b)return;state.clock=b.dataset.clock;$('clockValue').textContent=state.clock;menu.hidden=true;btn.setAttribute('aria-expanded','false');clockSVG();saveTrackSettings()});
 document.addEventListener('click',e=>{if(!e.target.closest('.selectWrap')){menu.hidden=true;btn.setAttribute('aria-expanded','false')}});
-$('tabs').addEventListener('click',e=>{let b=e.target.closest('[data-track]');if(!b)return;state.track=b.dataset.track;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));$('trackName').textContent=state.track;renderCourseMeta();$('clockValue').textContent=state.clock;clockSVG();renderEditor();renderMemo();$('weeklyLink').href='./weekly.html?track='+encodeURIComponent(state.track)});
+$('tabs').addEventListener('click',e=>{let b=e.target.closest('[data-track]');if(!b)return;state.track=b.dataset.track;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===b));$('trackName').textContent=state.track;renderCourseMeta();$('clockValue').textContent=state.clock;clockSVG();renderEditor();renderMemo();updateClockMemo();$('weeklyLink').href='./weekly.html?track='+encodeURIComponent(state.track)});
 $('segments').addEventListener('click',e=>{let b=e.target.closest('[data-segment]');if(!b)return;state.segment=b.dataset.segment;document.querySelectorAll('.segment').forEach(t=>t.classList.toggle('active',t===b));renderEditor()});
 function paintRange(el){
  const pct=100*(Number(el.value)-Number(el.min))/(Number(el.max)-Number(el.min)||1);
@@ -442,6 +454,8 @@ function renderJRA(){
  meta.railDay=valid&&Number.isInteger(x.railDay)?x.railDay:null;
  renderCourseMeta();
  $('infoDate').textContent=valid?jraDateLabel(date):'—';
+ memoDateByTrack[state.track]=valid&&date?date:localDate();
+ updateClockMemo();
  // SVG arrow is positioned immediately after the actual date text, without shifting the layout.
  const width=$('infoDate').getComputedTextLength();
  dateArrow.setAttribute('transform','translate('+(width-89)+',0)');
