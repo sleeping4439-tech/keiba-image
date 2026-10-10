@@ -130,7 +130,7 @@ function extractSourceMeasurements(html,course,year,type,conditionDate){
 function extractRecentMeasurements(html,course,year,type,limit){
  const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
  if(!id||!html)return [];
- const region=(html.match(new RegExp('<div\\\\b[^>]*\\\\bid=["\\\\x27]'+id+'["\\\\x27][^>]*>([\\\\s\\\\S]*?)(?=<div\\\\b[^>]*\\\\bid=["\\\\x27]rc[A-Z]["\\\\x27]|$)','i'))||[])[1]||'';
+ const region=(html.match(new RegExp('<div\\b[^>]*\\bid=["\\x27]'+id+'["\\x27][^>]*>([\\s\\S]*?)(?=<div\\b[^>]*\\bid=["\\x27]rc[A-Z]["\\x27]|$)','i'))||[])[1]||'';
  const units=[...region.matchAll(/<div\\s+class=["']unit["']\\s*>([\\s\\S]*?)(?=<div\\s+class=["']unit["']|$)/gi)];
  const entries=[];
  for(const unit of units){
