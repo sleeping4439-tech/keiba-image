@@ -485,6 +485,25 @@ async function refreshJRA(){
   jraTracks=body.schemaVersion===1&&body.tracks?body.tracks:{};
  }catch{jraTracks={};}
  renderJRA();
+ // Preserve the JRA measurement date, not the day the browser was opened.
+ for(const track of ['東京','京都']){
+  const x=jraTracks[track];
+  if(!x)continue;
+  const rows=Array.isArray(x.history)?x.history:[];
+  for(const row of rows){
+   if(!/^20\\d{2}-\\d{2}-\\d{2}$/.test(row.date||''))continue;
+   const data={};
+   for(const field of ['cushion','moistureFinish','moistureCorner'])if(Number.isFinite(row[field]))data[field]=row[field];
+   if(row.date===x.conditionObservedAt&&['良','稍重','重','不良'].includes(x.condition))data.condition=x.condition;
+   if(Object.keys(data).length)document.dispatchEvent(new CustomEvent('yubaba-jra-data',{detail:{date:row.date,track,data}}));
+  }
+  if(/^20\\d{2}-\\d{2}-\\d{2}$/.test(x.observedAt||'')&&!rows.some(row=>row.date===x.observedAt)){
+   const data={};
+   for(const field of ['cushion','moistureFinish','moistureCorner'])if(Number.isFinite(x[field]))data[field]=x[field];
+   if(x.observedAt===x.conditionObservedAt&&['良','稍重','重','不良'].includes(x.condition))data.condition=x.condition;
+   if(Object.keys(data).length)document.dispatchEvent(new CustomEvent('yubaba-jra-data',{detail:{date:x.observedAt,track,data}}));
+  }
+ }
 }
 document.getElementById('tabs').addEventListener('click',()=>{closeDateChoice();renderJRA()});
 refreshJRA();
@@ -519,8 +538,9 @@ async function flush(){
   for(const [key,item] of [...pending]){
    const {data:existing,error:readError}=await db.from('track_records').select('analysis,jra_data').eq('user_id',user.id).eq('race_date',item.date).eq('track',item.track).maybeSingle();
    if(readError){report('履歴未同期：'+readError.message);break;}
-   const analysis={...(existing?.analysis||{}),...item.analysis};
-   const {error}=await db.from('track_records').upsert({user_id:user.id,race_date:item.date,track:item.track,analysis,jra_data:existing?.jra_data||{}},{onConflict:'user_id,race_date,track'});
+   const analysis={...(existing?.analysis||{}),...(item.analysis||{})};
+   const jra_data={...(existing?.jra_data||{}),...(item.jra_data||{})};
+   const {error}=await db.from('track_records').upsert({user_id:user.id,race_date:item.date,track:item.track,analysis,jra_data},{onConflict:'user_id,race_date,track'});
    if(error){report('履歴未同期：'+error.message);break;}
    // Do not discard newer edits that arrived during the network request.
    if(pending.get(key)===item){pending.delete(key);persist();report(pending.size?'履歴の保存待ち '+pending.size+'件':'履歴に保存しました')}
@@ -538,9 +558,16 @@ function recordChange(track){
  const memo=localStorage.getItem('keiba-clock-memo-v1:'+track+':'+date)||'';
  const analysis={clock:settings.clockByTrack?.[track]||'',memo:localStorage.getItem('keiba-memo-'+track)||'',clockMemo:memo,loadBySegment:load,grip};
  const item={date,track,analysis};
- pending.set(key,item);persist();report('履歴を保存待ち…');flush();
+ pending.set(key,{...(pending.get(key)||{}),...item,jra_data:pending.get(key)?.jra_data});persist();report('履歴を保存待ち…');flush();
 }
 document.addEventListener('yubaba-analysis-changed',e=>recordChange(e.detail?.track));
+document.addEventListener('yubaba-jra-data',e=>{
+ const {date,track,data}=e.detail||{};
+ if(!/^20\\d{2}-\\d{2}-\\d{2}$/.test(date||'')||!['東京','京都'].includes(track)||!data)return;
+ const key=date+':'+track,old=pending.get(key)||{date,track};
+ pending.set(key,{...old,jra_data:{...(old.jra_data||{}),...data}});
+ persist();flush();
+});
 window.addEventListener('online',flush);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
 db.auth.onAuthStateChange((event)=>{if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')setTimeout(flush,0)});
