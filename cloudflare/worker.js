@@ -176,6 +176,22 @@ export default {async fetch(request){
  if(path==='/health')return respond({ok:true,version:18,racesFix:'http-diagnostics'});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
+ if(path==='/freshness-diagnostics'){
+  const targets=['index.html','index2.html','_data_cushion.html','_data_moist.html'];
+  const origins=['https://www.jra.go.jp/keiba/baba/','https://jra.jp/keiba/baba/'];
+  const results=await Promise.all(origins.flatMap(origin=>targets.map(async file=>{
+   const sourceUrl=origin+file;
+   try{
+    const res=await fetch(freshJraUrl(sourceUrl),{headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+    const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+    const body=textOnly(html);
+    const dates=[...body.matchAll(/(?:10月(?:9|10)日|2026年10月10日)[^。]{0,60}/g)].slice(0,8).map(m=>m[0]);
+    const measured=[...html.matchAll(/(?:10月(?:9|10)日|10\/10|10\/9)[^<]{0,70}/g)].slice(0,12).map(m=>m[0]);
+    return {sourceUrl,status:res.status,finalUrl:res.url,bytes:html.length,etag:res.headers.get('etag'),lastModified:res.headers.get('last-modified'),dates,measured};
+   }catch(error){return {sourceUrl,error:String(error)}}
+  })));
+  return new Response(JSON.stringify({checkedAt:new Date().toISOString(),results}),{headers:{...HEADERS,'cache-control':'no-store'}});
+ }
  if(path==='/parse-diagnostics'){
   const results=[];
   const sourcePages=await jraDiagnostic();
