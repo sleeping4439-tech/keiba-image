@@ -424,8 +424,8 @@ function jraDateLabel(date){
 }
 function renderJRA(){
  const x=jraTracks[state.track];
- const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\\d{2}-\\d{2}-\\d{2}$/.test(x.observedAt||'');
- const history=valid&&Array.isArray(x.history)?x.history.filter(r=>/^20\\d{2}-\\d{2}-\\d{2}$/.test(r.date)&&Number.isFinite(r.cushion)&&Number.isFinite(r.moistureFinish)&&Number.isFinite(r.moistureCorner)):[];
+ const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
+ const history=valid&&Array.isArray(x.history)?x.history.filter(r=>/^20\d{2}-\d{2}-\d{2}$/.test(r.date)&&Number.isFinite(r.cushion)&&Number.isFinite(r.moistureFinish)&&Number.isFinite(r.moistureCorner)):[];
  const selected=history.find(r=>r.date===chosenJraDates[state.track])||history.find(r=>r.date===x?.observedAt)||history[history.length-1];
  const row=selected||x;
  const date=selected?.date||x?.observedAt;
