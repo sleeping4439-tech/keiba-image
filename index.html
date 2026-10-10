@@ -498,10 +498,11 @@ const db=createClient('https://wsjeeoctwojtgorgaboa.supabase.co','sb_publishable
 const queueKey='yubaba-pending-analysis-v1';
 const status=document.createElement('div');
 status.style.cssText='position:fixed;right:14px;bottom:14px;z-index:1000;max-width:320px;padding:9px 12px;border:1px solid #cad9cc;border-radius:9px;background:#f9fcf9;color:#294633;font:12px/1.5 sans-serif;box-shadow:0 2px 10px #0001;display:none';
-status.innerHTML='<span id="historySyncMessage"></span> <button type="button" id="historySyncRetry" style="margin-left:6px;border:1px solid #cad9cc;border-radius:5px;background:white;padding:3px 7px;cursor:pointer">再送信</button>';
+status.innerHTML='<span id="historySyncMessage"></span> <button type="button" id="historySyncRetry" style="margin-left:6px;border:1px solid #cad9cc;border-radius:5px;background:white;padding:3px 7px;cursor:pointer">再送信</button><button type="button" id="historySyncClose" aria-label="通知を閉じる" style="margin-left:8px;border:0;background:transparent;color:#617568;font-size:17px;line-height:1;cursor:pointer;padding:2px 4px">×</button>';
 document.body.append(status);
 const report=(message,show=true)=>{status.style.display=show?'block':'none';status.querySelector('#historySyncMessage').textContent=message};
 status.querySelector('#historySyncRetry').addEventListener('click',()=>flush());
+status.querySelector('#historySyncClose').addEventListener('click',()=>{status.style.display='none'});
 const jstDate=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const pending=new Map();
 try{const items=JSON.parse(localStorage.getItem(queueKey)||'[]');if(Array.isArray(items))for(const item of items){if(item&&/^20\d{2}-\d{2}-\d{2}$/.test(item.date)&&['東京','京都'].includes(item.track))pending.set(item.date+':'+item.track,item)}}catch(e){}
