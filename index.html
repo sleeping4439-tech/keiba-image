@@ -496,6 +496,12 @@ refreshJRA();
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const db=createClient('https://wsjeeoctwojtgorgaboa.supabase.co','sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const queueKey='yubaba-pending-analysis-v1';
+const status=document.createElement('div');
+status.style.cssText='position:fixed;right:14px;bottom:14px;z-index:1000;max-width:320px;padding:9px 12px;border:1px solid #cad9cc;border-radius:9px;background:#f9fcf9;color:#294633;font:12px/1.5 sans-serif;box-shadow:0 2px 10px #0001;display:none';
+status.innerHTML='<span id="historySyncMessage"></span> <button type="button" id="historySyncRetry" style="margin-left:6px;border:1px solid #cad9cc;border-radius:5px;background:white;padding:3px 7px;cursor:pointer">再送信</button>';
+document.body.append(status);
+const report=(message,show=true)=>{status.style.display=show?'block':'none';status.querySelector('#historySyncMessage').textContent=message};
+status.querySelector('#historySyncRetry').addEventListener('click',()=>flush());
 const jstDate=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const pending=new Map();
 try{const items=JSON.parse(localStorage.getItem(queueKey)||'[]');if(Array.isArray(items))for(const item of items){if(item&&/^20\d{2}-\d{2}-\d{2}$/.test(item.date)&&['東京','京都'].includes(item.track))pending.set(item.date+':'+item.track,item)}}catch(e){}
@@ -503,20 +509,21 @@ const persist=()=>{try{localStorage.setItem(queueKey,JSON.stringify([...pending.
 let busy=false,retryTimer;
 async function flush(){
  if(busy||!pending.size)return;
+ report('履歴を同期中…');
  busy=true;
  try{
   const {data:{user},error:authError}=await db.auth.getUser();
-  if(authError||!user)return;
+  if(authError||!user){report('履歴未同期：ログイン状態を確認してください');return;}
   for(const [key,item] of [...pending]){
    const {data:existing,error:readError}=await db.from('track_records').select('analysis,jra_data').eq('user_id',user.id).eq('race_date',item.date).eq('track',item.track).maybeSingle();
-   if(readError)break;
+   if(readError){report('履歴未同期：'+readError.message);break;}
    const analysis={...(existing?.analysis||{}),...item.analysis};
    const {error}=await db.from('track_records').upsert({user_id:user.id,race_date:item.date,track:item.track,analysis,jra_data:existing?.jra_data||{}},{onConflict:'user_id,race_date,track'});
-   if(error)break;
+   if(error){report('履歴未同期：'+error.message);break;}
    // Do not discard newer edits that arrived during the network request.
-   if(pending.get(key)===item){pending.delete(key);persist()}
+   if(pending.get(key)===item){pending.delete(key);persist();report(pending.size?'履歴の保存待ち '+pending.size+'件':'履歴に保存しました')}
   }
- }catch(e){}finally{busy=false}
+ }catch(e){report('履歴未同期：通信エラー。再送信できます')}finally{busy=false}
 }
 function recordChange(track){
  if(!['東京','京都'].includes(track))return;
@@ -529,12 +536,13 @@ function recordChange(track){
  const memo=localStorage.getItem('keiba-clock-memo-v1:'+track+':'+date)||'';
  const analysis={clock:settings.clockByTrack?.[track]||'',memo:localStorage.getItem('keiba-memo-'+track)||'',clockMemo:memo,loadBySegment:load,grip};
  const item={date,track,analysis};
- pending.set(key,item);persist();flush();
+ pending.set(key,item);persist();report('履歴を保存待ち…');flush();
 }
 document.addEventListener('yubaba-analysis-changed',e=>recordChange(e.detail?.track));
 window.addEventListener('online',flush);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
 db.auth.onAuthStateChange((event)=>{if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')setTimeout(flush,0)});
+if(pending.size)report('履歴の保存待ち '+pending.size+'件');
 flush();
 retryTimer=setInterval(flush,60000);
 </script></body></html>
