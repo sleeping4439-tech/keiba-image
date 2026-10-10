@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>馬場履歴｜ゆ馬場</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f7faf7;color:#253329;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}main{max-width:850px;margin:auto;padding:24px 16px 80px}a{color:#348253}header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}h1{font-size:25px;margin:0}.muted{color:#708075;font-size:13px;line-height:1.7}.card{background:#fff;border:1px solid #dce8df;border-radius:14px;padding:20px;margin:14px 0}button{font:inherit;border:1px solid #c5d8c9;border-radius:9px;background:#fff;padding:10px 14px;cursor:pointer}button.primary{background:#438b5d;color:white;border-color:#438b5d}button:disabled{opacity:.55;cursor:wait}label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}input,select,textarea{font:inherit;width:100%;border:1px solid #cbd9ce;border-radius:8px;padding:10px;background:white}textarea{min-height:100px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.record{width:100%;text-align:left;display:block;margin:8px 0}.hidden{display:none!important}.pill{font-size:12px;background:#edf5ef;border-radius:20px;padding:5px 10px}.error{color:#a03232}.status{min-height:20px;margin:12px 0;font-size:13px}@media(max-width:540px){.grid{grid-template-columns:1fr}.card{padding:16px}}
+</style></head><body><main><header><div><h1>馬場履歴</h1><div class="muted">日付・競馬場ごとの分析記録（非公開）</div></div><a href="./index.html">ゆ馬場に戻る →</a></header>
+<section id="setup" class="card hidden"><h2>初期設定待ち</h2><p class="muted">オンライン保存の接続設定がまだ完了していません。既存の「ゆ馬場」はこれまでどおり使えます。</p></section>
+<section id="auth" class="card hidden"><h2>本人確認</h2><p class="muted">履歴を閲覧・編集するにはGoogleアカウントでログインしてください。</p><button class="primary" id="login">Googleでログイン</button></section>
+<section id="app" class="hidden"><div class="row"><span id="userLabel" class="muted"></span><button id="logout">ログアウト</button></div>
+<section class="card"><h2>保存済みの履歴</h2><p class="muted">この一覧にはログインした本人の記録だけが表示されます。</p><div class="row"><button id="reload">更新</button><span id="count" class="muted"></span></div><div id="list"></div></section>
+<section class="card"><h2 id="editorTitle">履歴を編集</h2><div class="grid"><div><label for="date">日付</label><input type="date" id="date"></div><div><label for="track">競馬場</label><select id="track"><option>東京</option><option>京都</option></select></div><div><label for="condition">馬場状態（JRA）</label><input id="condition" readonly placeholder="取得データ未登録"></div><div><label for="cushion">クッション値（JRA）</label><input id="cushion" readonly placeholder="取得データ未登録"></div><div><label for="moistureFinish">含水率 G前（JRA）</label><input id="moistureFinish" readonly placeholder="取得データ未登録"></div><div><label for="moistureCorner">含水率 4角（JRA）</label><input id="moistureCorner" readonly placeholder="取得データ未登録"></div><div><label for="clock">時計レベル</label><select id="clock"><option value="">未設定</option></select></div></div>
+<label for="analysis">分析メモ</label><textarea id="analysis" placeholder="馬場傾向・修正した理由など"></textarea>
+<label for="settings">負荷・グリップ設定（保存済みJSON）</label><textarea id="settings" readonly placeholder="メイン画面との連携後に自動表示されます"></textarea>
+<p class="muted">JRAの測定値は参照用です。分析内容のみ編集できます。既存のメイン画面との自動同期は次の段階で接続します。</p>
+<button class="primary" id="save">この日の分析を保存</button><div id="status" class="status" role="status"></div></section></section>
+</main>
+<script type="module">
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const CONFIG={url:'',anonKey:''}; // Supabase project URL and publishable/anon key (never service_role)
+const $=id=>document.getElementById(id);
+const configured=CONFIG.url.startsWith('https://')&&CONFIG.anonKey.length>20;
+const levels=['超高速','高速','標準','低速','超低速'];
+$('clock').innerHTML+=[...levels].map(v=>'<option>'+v+'</option>').join('');
+$('date').value=new Date().toLocaleDateString('sv-SE');
+if(!configured){$('setup').classList.remove('hidden');}else{
+const db=createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let user=null, records=[];
+function msg(t,err=false){$('status').textContent=t;$('status').classList.toggle('error',err)}
+function fill(r){$('date').value=r?.race_date||new Date().toLocaleDateString('sv-SE');$('track').value=r?.track||'東京';const j=r?.jra_data||{};for(const k of ['condition','cushion','moistureFinish','moistureCorner'])$(k).value=j[k]??'';$('clock').value=r?.analysis?.clock||'';$('analysis').value=r?.analysis?.memo||'';$('settings').value=r?.analysis?.loadBySegment?JSON.stringify({loadBySegment:r.analysis.loadBySegment,grip:r.analysis.grip},null,2):'';msg('');}
+async function load(){const {data,error}=await db.from('track_records').select('*').order('race_date',{ascending:false}).limit(500);if(error){msg('履歴を読み込めません: '+error.message,true);return}records=data||[];$('count').textContent=records.length+'件';$('list').replaceChildren();for(const r of records){const b=document.createElement('button');b.className='record';b.textContent=r.race_date+'｜'+r.track+'｜'+(r.analysis?.clock||'未設定')+(r.jra_data?.condition?'｜'+r.jra_data.condition:'');b.onclick=()=>{fill(r);$('editorTitle').scrollIntoView({behavior:'smooth',block:'start'})};$('list').append(b)}if(!records.length)$('list').textContent='保存済みの履歴はまだありません。'}
+async function sync(session){user=session?.user||null;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);if(user){$('userLabel').textContent=user.email||'ログイン中';await load();} }
+$('login').onclick=async()=>{const {error}=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert(error.message)};
+$('logout').onclick=async()=>{await db.auth.signOut();await sync(null)};
+$('reload').onclick=load;
+$('save').onclick=async()=>{if(!user)return;const date=$('date').value,track=$('track').value;if(!/^20\d{2}-\d{2}-\d{2}$/.test(date))return msg('日付を確認してください',true);const old=records.find(r=>r.race_date===date&&r.track===track);const analysis={...(old?.analysis||{}),clock:$('clock').value,memo:$('analysis').value};const payload={user_id:user.id,race_date:date,track,analysis,jra_data:old?.jra_data||{}};$('save').disabled=true;const {error}=await db.from('track_records').upsert(payload,{onConflict:'user_id,race_date,track'});$('save').disabled=false;if(error)return msg('保存に失敗しました: '+error.message,true);msg('保存しました');await load()};
+db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')sync(null)});
+const {data:{session}}=await db.auth.getSession();await sync(session);
+}
+</script></body></html>
