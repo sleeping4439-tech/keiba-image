@@ -134,18 +134,18 @@ function extractRecentMeasurements(html,course,year,type,conditionDate){
  const units=[...region.matchAll(/<div\s+class=["']unit["']\s*>([\s\S]*?)(?=<div\s+class=["']unit["']|$)/gi)];
  const entries=[];
  for(const unit of units){
-  const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\\/div>/i)||[])[1]||'';
+  const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\/div>/i)||[])[1]||'';
   const time=measuredDate(raw,year);
   if(!time||time.slice(0,10)>conditionDate)continue;
   if(type==='cushion'){
-   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\\/div>/i)||[])[1];
+   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\/div>/i)||[])[1];
    if(v===undefined)continue;
    const cushion=Number(v);
    if(cushion>=0&&cushion<=30)entries.push({time,cushion});
   }else{
-   const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\\/div>/i)||[])[1]||'';
-   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\\/span>/i)||[])[1];
-   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\\/span>/i)||[])[1];
+   const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\/div>/i)||[])[1]||'';
+   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
+   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
    if(g===undefined||c===undefined)continue;
    const finish=Number(g),corner=Number(c);
    if(finish<=100&&corner<=100)entries.push({time,finish,corner});
