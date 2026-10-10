@@ -29,5 +29,5 @@ for(const r of races)if(!(r.track in data.expectedTurfRaces))throw Error('Unexpe
 races.sort((a,b)=>a.track.localeCompare(b.track,'ja')||a.race-b.race);
 const out=resolve('data/laps/'+data.date+'.json');
 await mkdir(dirname(out),{recursive:true});
-await writeFile(out,JSON.stringify({date:data.date,updatedAt:new Date().toISOString(),source:'JRA公式レース結果',races},null,2)+'\n');
+await writeFile(out,JSON.stringify({date:data.date,updatedAt:new Date().toISOString(),source:'JRA公式レース結果',expectedTurfRaces:data.expectedTurfRaces,races},null,2)+'\n');
 console.log('Saved '+out+' ('+races.length+' turf races)');
