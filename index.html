@@ -52,7 +52,7 @@
 .appLogo{display:block;width:clamp(165px,36vw,260px);height:auto;margin:0 auto}.appTitle{margin:0 0 14px}
 
 .weeklyLinks{display:inline-flex;flex-direction:row;align-items:center;gap:12px}.weeklyLinks #viewToggle{margin:0}.weeklyLinks a{font-size:13px;font-weight:600;color:#43845f;text-decoration:underline;padding:6px 3px}
-</style></head><body><main class="app"><h1 class="appTitle"><img src="./yubaba-logo.svg?v=aligned-right5" alt="ゆ馬場" class="appLogo"></h1><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
+.dateChoice{position:absolute;left:30%;top:39%;z-index:10;background:white;border:1px solid #d8ded8;border-radius:10px;box-shadow:0 5px 20px #0003;padding:5px;min-width:120px}.dateChoice[hidden]{display:none}.dateChoice button{display:block;width:100%;padding:9px 13px;text-align:left;border:0;background:white;border-radius:7px;font-weight:650;font-size:14px;cursor:pointer}.dateChoice button:hover,.dateChoice button[aria-selected="true"]{background:#e8f4eb}.dateArrow{cursor:pointer;outline:none}.dateArrow:focus-visible path{stroke:#bf3327;stroke-width:5}</style></head><body><main class="app"><h1 class="appTitle"><img src="./yubaba-logo.svg?v=aligned-right5" alt="ゆ馬場" class="appLogo"></h1><nav class="tabs" id="tabs"><button class="tab active" data-track="東京">東京</button><button class="tab" data-track="京都">京都</button></nav>
 <div class="wind"><span id="windLive">風：取得中…</span> <span class="weeklyLinks"><a id="weeklyLink" href="./weekly.html?track=東京">週間情報 →</a><button type="button" id="viewToggle" aria-pressed="false">坂・起伏 →</button></span></div>
 <section class="stage" id="conditionView">
 <svg class="track" viewBox="0 0 1000 655" role="img" aria-label="東京競馬場の馬場分析コース図">
@@ -74,7 +74,7 @@
 <!-- Title centered on the horizontal divider (center x=500). -->
 <text id="trackName" x="500" y="286" text-anchor="middle" font-size="59" font-weight="750">東京</text>
 <!-- 現在は端末の日付を表示。取得連携後はデータの対象日を表示する。 -->
-<text id="infoDate" x="302" y="273" text-anchor="start" font-size="23" font-weight="500">—</text>
+<text id="infoDate" x="302" y="273" text-anchor="start" font-size="23" font-weight="500">—</text><g id="dateArrow" class="dateArrow" role="button" tabindex="0" aria-label="測定日を選択" aria-expanded="false" style="display:none"><rect x="387" y="244" width="39" height="39" fill="transparent"/><path d="M396 257 l10 11 10 -11" stroke="#df4434" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
 <!-- Four independent fields, styled as compact badges, based on supplied layout. -->
 <g font-size="15" text-anchor="middle" font-weight="600">
 <rect x="604" y="236" width="47" height="26" rx="5" fill="#dedede"/>
@@ -97,7 +97,7 @@
 <text x="657" y="351" font-size="16">コンディション</text>
 <text id="jraCondition" x="657" y="401" font-size="43">—</text>
 </g>
-</svg>
+</svg><div id="dateChoice" class="dateChoice" hidden role="listbox" aria-label="測定日を選択"></div>
 </section>
 <section id="terrainView" hidden><div class="terrainHeader"><strong id="terrainTitle">東京競馬場｜芝コース</strong><span>主要な坂の位置（模式表示）</span></div><div class="terrainSVG" id="terrainTokyo"><svg viewBox="65 178 1050 545" role="img" aria-label="東京競馬場の芝コース平面トレース。上りと下り、ゴール位置を表示"><defs><marker id="upT" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#d88940"/></marker><marker id="dnT" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#428bc1"/></marker></defs>
 <!-- 東京：上段長い向正面、右側に芝1800/2000m用の引き込み、下段長い直線 -->
@@ -415,14 +415,25 @@ updateWind();
 
 const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
 let jraTracks={};
+const chosenJraDates={};
+const dateArrow=$('dateArrow'),dateChoice=$('dateChoice');
+function closeDateChoice(){dateChoice.hidden=true;dateArrow.setAttribute('aria-expanded','false')}
+function jraDateLabel(date){
+ const [y,m,d]=date.split('-').map(Number);
+ return m+'/'+d+' '+['日','月','火','水','木','金','土'][new Date(Date.UTC(y,m-1,d)).getUTCDay()];
+}
 function renderJRA(){
  const x=jraTracks[state.track];
- const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
- $('jraCushion').textContent=valid&&Number.isFinite(x.cushion)?x.cushion.toFixed(1):'—';
- $('jraMoistureFinish').textContent='G前 '+(valid&&Number.isFinite(x.moistureFinish)?x.moistureFinish.toFixed(1)+'%':'—');
- $('jraMoistureCorner').textContent='4角 '+(valid&&Number.isFinite(x.moistureCorner)?x.moistureCorner.toFixed(1)+'%':'—');
- $('jraCondition').textContent=valid?x.condition:'—';
- // JRAの馬場情報に記載された項目のみ表示。未確認の使用日数は補完しない。
+ const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\\d{2}-\\d{2}-\\d{2}$/.test(x.observedAt||'');
+ const history=valid&&Array.isArray(x.history)?x.history.filter(r=>/^20\\d{2}-\\d{2}-\\d{2}$/.test(r.date)&&Number.isFinite(r.cushion)&&Number.isFinite(r.moistureFinish)&&Number.isFinite(r.moistureCorner)):[];
+ const selected=history.find(r=>r.date===chosenJraDates[state.track])||history.find(r=>r.date===x?.observedAt)||history[history.length-1];
+ const row=selected||x;
+ const date=selected?.date||x?.observedAt;
+ $('jraCushion').textContent=valid&&Number.isFinite(row.cushion)?row.cushion.toFixed(1):'—';
+ $('jraMoistureFinish').textContent='G前 '+(valid&&Number.isFinite(row.moistureFinish)?row.moistureFinish.toFixed(1)+'%':'—');
+ $('jraMoistureCorner').textContent='4角 '+(valid&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
+ // A condition bulletin is not automatically valid for earlier measurement dates.
+ $('jraCondition').textContent=valid&&(!selected||date>=x.conditionObservedAt)?x.condition:'—';
  const meta=courseMeta[state.track];
  meta.meetingNumber=valid&&Number.isInteger(x.meetingNumber)?x.meetingNumber:null;
  meta.dayNumber=valid&&Number.isInteger(x.meetingDay)?x.meetingDay:null;
@@ -430,13 +441,26 @@ function renderJRA(){
  meta.rail=valid&&/^[A-D]$/.test(x.rail||'')?x.rail:null;
  meta.railDay=valid&&Number.isInteger(x.railDay)?x.railDay:null;
  renderCourseMeta();
- if(valid){
-  const [year,month,day]=x.observedAt.split('-').map(Number);
-  const weekday=['日','月','火','水','木','金','土'][new Date(Date.UTC(year,month-1,day)).getUTCDay()];
-  $('infoDate').textContent=month+'/'+day+' '+weekday;
- }else $('infoDate').textContent='—';
+ $('infoDate').textContent=valid?jraDateLabel(date):'—';
+ // SVG arrow is positioned immediately after the actual date text, without shifting the layout.
+ const width=$('infoDate').getComputedTextLength();
+ dateArrow.setAttribute('transform','translate('+(width-82)+',0)');
+ dateArrow.style.display=history.length>1?'':'none';
+ dateChoice.innerHTML=history.map(r=>'<button type="button" role="option" data-date="'+r.date+'" aria-selected="'+(r.date===date)+'">'+jraDateLabel(r.date)+'</button>').join('');
+ if(history.length<2)closeDateChoice();
 }
-
+dateArrow.addEventListener('click',()=>{
+ if(dateArrow.style.display==='none')return;
+ dateChoice.hidden=!dateChoice.hidden;
+ dateArrow.setAttribute('aria-expanded',String(!dateChoice.hidden));
+});
+dateArrow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();dateArrow.dispatchEvent(new MouseEvent('click'))}if(e.key==='Escape')closeDateChoice()});
+dateChoice.addEventListener('click',e=>{
+ const b=e.target.closest('[data-date]');if(!b)return;
+ chosenJraDates[state.track]=b.dataset.date;
+ closeDateChoice();renderJRA();
+});
+document.addEventListener('click',e=>{if(!dateChoice.contains(e.target)&&!dateArrow.contains(e.target))closeDateChoice()});
 async function refreshJRA(){
  try{
   const res=await fetch(JRA_URL,{cache:'no-store'});
@@ -446,6 +470,6 @@ async function refreshJRA(){
  }catch{jraTracks={};}
  renderJRA();
 }
-document.getElementById('tabs').addEventListener('click',renderJRA);
+document.getElementById('tabs').addEventListener('click',()=>{closeDateChoice();renderJRA()});
 refreshJRA();
 </script></body></html>
