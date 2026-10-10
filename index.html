@@ -491,13 +491,13 @@ async function refreshJRA(){
   if(!x)continue;
   const rows=Array.isArray(x.history)?x.history:[];
   for(const row of rows){
-   if(!/^20\\d{2}-\\d{2}-\\d{2}$/.test(row.date||''))continue;
+   if(!/^20\d{2}-\d{2}-\d{2}$/.test(row.date||''))continue;
    const data={};
    for(const field of ['cushion','moistureFinish','moistureCorner'])if(Number.isFinite(row[field]))data[field]=row[field];
    if(row.date===x.conditionObservedAt&&['良','稍重','重','不良'].includes(x.condition))data.condition=x.condition;
    if(Object.keys(data).length)document.dispatchEvent(new CustomEvent('yubaba-jra-data',{detail:{date:row.date,track,data}}));
   }
-  if(/^20\\d{2}-\\d{2}-\\d{2}$/.test(x.observedAt||'')&&!rows.some(row=>row.date===x.observedAt)){
+  if(/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'')&&!rows.some(row=>row.date===x.observedAt)){
    const data={};
    for(const field of ['cushion','moistureFinish','moistureCorner'])if(Number.isFinite(x[field]))data[field]=x[field];
    if(x.observedAt===x.conditionObservedAt&&['良','稍重','重','不良'].includes(x.condition))data.condition=x.condition;
@@ -563,7 +563,7 @@ function recordChange(track){
 document.addEventListener('yubaba-analysis-changed',e=>recordChange(e.detail?.track));
 document.addEventListener('yubaba-jra-data',e=>{
  const {date,track,data}=e.detail||{};
- if(!/^20\\d{2}-\\d{2}-\\d{2}$/.test(date||'')||!['東京','京都'].includes(track)||!data)return;
+ if(!/^20\d{2}-\d{2}-\d{2}$/.test(date||'')||!['東京','京都'].includes(track)||!data)return;
  const key=date+':'+track,old=pending.get(key)||{date,track};
  pending.set(key,{...old,jra_data:{...(old.jra_data||{}),...data}});
  persist();flush();
