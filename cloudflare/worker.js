@@ -146,7 +146,7 @@ async function jraVerified(){
    const x=extractCondition(html,page.title,page.url);
    if(!x)continue;
    const year=Number(x.observedAt.slice(0,4));
-   const meetingDate=(html.match(/第\d+回\s*(?:東京|京都)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
+   const meetingDate=(textOnly(html).match(/第\d+回\s*(?:東京|京都)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
    const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
    const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit):null;
    const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',measurementLimit):null;
