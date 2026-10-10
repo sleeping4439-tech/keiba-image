@@ -341,7 +341,7 @@ export default {async fetch(request){
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const plain=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/g,' ').replace(/\s+/g,' ').trim();
    const at=plain.indexOf('ハロンタイム'),win=plain.indexOf('着順');
-   return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\d{2}年[^]{0,100}?\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\s*[\d,，]+\s*メートル\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length});
+   return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\d{2}年[^]{0,100}?\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\s*[\d,，]+\s*メートル\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length,pageTitle:(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]?.replace(/<[^>]+>/g,' ').trim().slice(0,160)||null,charset:(html.match(/<meta[^>]*charset\s*=\s*["']?([^\s"'>]+)/i)||[])[1]||null,headSample:plain.slice(0,550),keywords:{race:plain.includes('レース'),lap:plain.includes('ハロンタイム'),result:plain.includes('レース結果')},finalUrl:response.url});
   }catch(e){return respond({ok:false,error:String(e)})}
  }
  if(path==='/races'){
