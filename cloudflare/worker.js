@@ -301,12 +301,13 @@ export default {async fetch(request){
  } catch(error){return respond({ok:false,endpoint:'races',error:String(error),hint:'Worker race handler error'},200)}
  }
  if(path==='/weekly'){
+  const freshHeaders={'content-type':'application/json; charset=utf-8','access-control-allow-origin':'https://sleeping4439-tech.github.io','cache-control':'no-store, max-age=0'};
   const results=new Map();
   await Promise.all(JRA_PAGES.map(async file=>{
-   const url=BASE+file;
+   const url=BASE+file+'?refresh='+Date.now();
    let track;
    try{
-    const response=await fetch(url);
+    const response=await fetch(url,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
     if(!response.ok)return;
     const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
     const title=textOnly((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
@@ -319,10 +320,10 @@ export default {async fetch(request){
     const notesStart=body.indexOf('週間情報'),notesEnd=body.indexOf('芝丈・使用コース・芝の様子',notesStart);
     const notesText=notesStart>=0?body.slice(notesStart,notesEnd>notesStart?notesEnd:notesStart+1500):'';
     const updates=[...notesText.matchAll(/(\d{1,2}月\d{1,2}日)\s*(芝コース|ダートコース)\s*([^。]{5,180}。)/g)].slice(0,12).map(m=>({date:m[1],course:m[2],text:m[3]}));
-    results.set(track,{sourceUrl:url,heading:(body.match(/第\d+回\s*[^ ]*?競馬\s*第\d+日[（(][^)）]+[)）]/)||[])[0]||null,rows,updates,available:rows.length>0});
+    results.set(track,{sourceUrl:BASE+file,heading:(body.match(/第\d+回\s*[^ ]*?競馬\s*第\d+日[（(][^)）]+[)）]/)||[])[0]||null,rows,updates,available:rows.length>0});
    }catch(error){if(track)results.set(track,{sourceUrl:url,available:false,error:'取得に失敗しました'})}
   }));
-  return respond({source:'JRA',updatedAt:new Date().toISOString(),tracks:Object.fromEntries(results)});
+  return new Response(JSON.stringify({source:'JRA',updatedAt:new Date().toISOString(),tracks:Object.fromEntries(results)}),{headers:freshHeaders});
  }
  if(path==='/weather'){
   const result={updatedAt:new Date().toISOString(),tracks:{}};
