@@ -127,6 +127,28 @@ function extractSourceMeasurements(html,course,year,type,conditionDate){
  entries.sort((a,b)=>b.time.localeCompare(a.time));
  return entries[0]||null;
 }
+function extractRecentMeasurements(html,course,year,type,limit){
+ const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
+ if(!id||!html)return [];
+ const region=(html.match(new RegExp('<div\\\\b[^>]*\\\\bid=["\\\\x27]'+id+'["\\\\x27][^>]*>([\\\\s\\\\S]*?)(?=<div\\\\b[^>]*\\\\bid=["\\\\x27]rc[A-Z]["\\\\x27]|$)','i'))||[])[1]||'';
+ const units=[...region.matchAll(/<div\\s+class=["']unit["']\\s*>([\\s\\S]*?)(?=<div\\s+class=["']unit["']|$)/gi)];
+ const entries=[];
+ for(const unit of units){
+  const raw=(unit[1].match(/<div\\s+class=["']time["']\\s*>([^<]+)<\\/div>/i)||[])[1]||'';
+  const time=measuredDate(raw,year);
+  if(!time||time.slice(0,10)>limit)continue;
+  if(type==='cushion'){
+   const value=(unit[1].match(/<div\\s+class=["']cushion["']\\s*>(\\d{1,2}(?:\\.\\d+)?)<\\/div>/i)||[])[1];
+   if(value!==undefined&&Number(value)<=30)entries.push({time,cushion:Number(value)});
+  }else{
+   const turf=(unit[1].match(/<div\\s+class=["']turf["']\\s*>([\\s\\S]*?)<\\/div>/i)||[])[1]||'';
+   const g=(turf.match(/<span\\s+class=["']mg["'][^>]*>(\\d{1,2}(?:\\.\\d+)?)<\\/span>/i)||[])[1];
+   const c=(turf.match(/<span\\s+class=["']m4c["'][^>]*>(\\d{1,2}(?:\\.\\d+)?)<\\/span>/i)||[])[1];
+   if(g!==undefined&&c!==undefined&&Number(g)<=100&&Number(c)<=100)entries.push({time,finish:Number(g),corner:Number(c)});
+  }
+ }
+ return entries.sort((a,b)=>b.time.localeCompare(a.time));
+}
 async function jraVerified(){
  const pages=await jraDiagnostic();
  const [cushionResult,moistResult]=await Promise.allSettled(['_data_cushion.html','_data_moist.html'].map(async file=>{
@@ -150,6 +172,16 @@ async function jraVerified(){
    const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
    const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit):null;
    const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',measurementLimit):null;
+   // Keep only this race weekend's Friday, Saturday and Sunday, with both official measurements present.
+   const meetingUTC=new Date(measurementLimit+'T00:00:00Z');
+   const weekday=meetingUTC.getUTCDay();
+   const friday=new Date(meetingUTC.getTime()-((weekday+2)%7)*86400000).toISOString().slice(0,10);
+   const cushionEntries=extractRecentMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit);
+   const moistEntries=extractRecentMeasurements(moistHTML,x.course,year,'moist',measurementLimit);
+   const byDate=new Map();
+   for(const item of cushionEntries){const day=item.time.slice(0,10);if(day>=friday&&!byDate.has(day))byDate.set(day,{date:day,cushion:item.cushion,cushionMeasuredAt:item.time})}
+   for(const item of moistEntries){const day=item.time.slice(0,10);const row=byDate.get(day);if(row&&row.moistureMeasuredAt===undefined){row.moistureFinish=item.finish;row.moistureCorner=item.corner;row.moistureMeasuredAt=item.time}}
+   x.history=[...byDate.values()].filter(row=>row.moistureMeasuredAt).sort((a,b)=>a.date.localeCompare(b.date));
    x.railDay=officialRailDay(x.course,year,x.meetingNumber,x.meetingDay,x.rail);
    x.cushion=c?.cushion??null;
    x.cushionMeasuredAt=c?.time??null;
