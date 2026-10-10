@@ -127,27 +127,32 @@ function extractSourceMeasurements(html,course,year,type,conditionDate){
  entries.sort((a,b)=>b.time.localeCompare(a.time));
  return entries[0]||null;
 }
-function extractRecentMeasurements(html,course,year,type,limit){
+function extractRecentMeasurements(html,course,year,type,conditionDate){
  const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
  if(!id||!html)return [];
  const region=(html.match(new RegExp('<div\\b[^>]*\\bid=["\\x27]'+id+'["\\x27][^>]*>([\\s\\S]*?)(?=<div\\b[^>]*\\bid=["\\x27]rc[A-Z]["\\x27]|$)','i'))||[])[1]||'';
- const units=[...region.matchAll(/<div\\s+class=["']unit["']\\s*>([\\s\\S]*?)(?=<div\\s+class=["']unit["']|$)/gi)];
+ const units=[...region.matchAll(/<div\s+class=["']unit["']\s*>([\s\S]*?)(?=<div\s+class=["']unit["']|$)/gi)];
  const entries=[];
  for(const unit of units){
-  const raw=(unit[1].match(/<div\\s+class=["']time["']\\s*>([^<]+)<\\/div>/i)||[])[1]||'';
+  const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\/div>/i)||[])[1]||'';
   const time=measuredDate(raw,year);
-  if(!time||time.slice(0,10)>limit)continue;
+  if(!time||time.slice(0,10)>conditionDate)continue;
   if(type==='cushion'){
-   const value=(unit[1].match(/<div\\s+class=["']cushion["']\\s*>(\\d{1,2}(?:\\.\\d+)?)<\\/div>/i)||[])[1];
-   if(value!==undefined&&Number(value)<=30)entries.push({time,cushion:Number(value)});
+   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\/div>/i)||[])[1];
+   if(v===undefined)continue;
+   const cushion=Number(v);
+   if(cushion>=0&&cushion<=30)entries.push({time,cushion});
   }else{
-   const turf=(unit[1].match(/<div\\s+class=["']turf["']\\s*>([\\s\\S]*?)<\\/div>/i)||[])[1]||'';
-   const g=(turf.match(/<span\\s+class=["']mg["'][^>]*>(\\d{1,2}(?:\\.\\d+)?)<\\/span>/i)||[])[1];
-   const c=(turf.match(/<span\\s+class=["']m4c["'][^>]*>(\\d{1,2}(?:\\.\\d+)?)<\\/span>/i)||[])[1];
-   if(g!==undefined&&c!==undefined&&Number(g)<=100&&Number(c)<=100)entries.push({time,finish:Number(g),corner:Number(c)});
+   const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\/div>/i)||[])[1]||'';
+   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
+   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
+   if(g===undefined||c===undefined)continue;
+   const finish=Number(g),corner=Number(c);
+   if(finish<=100&&corner<=100)entries.push({time,finish,corner});
   }
  }
- return entries.sort((a,b)=>b.time.localeCompare(a.time));
+ entries.sort((a,b)=>b.time.localeCompare(a.time));
+ return entries;
 }
 async function jraVerified(){
  const pages=await jraDiagnostic();
