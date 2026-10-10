@@ -34,6 +34,10 @@ export function parseJraResult(html,sourceUrl=''){
   winner=m?.[1]||null;
  }
  if(!winner)return null;
+ // Published race laps must add up to the winning time (within rounding tolerance).
+ const seconds=Number(winner.split(':')[0])*60+Number(winner.split(':')[1]);
+ const lapSeconds=laps.reduce((sum,v)=>sum+v,0);
+ if(Math.abs(seconds-lapSeconds)>0.15)return null;
  const date=header[1]+'-'+header[2].padStart(2,'0')+'-'+header[3].padStart(2,'0');
  const going=text.match(/(?:天候\s*[晴曇雨雪小]+[\s\S]{0,30}?)?芝\s*[：:]?\s*(良|稍重|重|不良)(?=\s|$)/);
  return {date,track:header[5],race,surface:'芝',distance,going:going?.[1]||'',finish:winner,laps,sourceUrl};
