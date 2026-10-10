@@ -146,8 +146,10 @@ async function jraVerified(){
    const x=extractCondition(html,page.title,page.url);
    if(!x)continue;
    const year=Number(x.observedAt.slice(0,4));
-   const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',x.observedAt):null;
-   const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',x.observedAt):null;
+   const meetingDate=(html.match(/第\d+回\s*(?:東京|京都)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
+   const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
+   const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit):null;
+   const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',measurementLimit):null;
    x.railDay=officialRailDay(x.course,year,x.meetingNumber,x.meetingDay,x.rail);
    x.cushion=c?.cushion??null;
    x.cushionMeasuredAt=c?.time??null;
@@ -161,7 +163,7 @@ async function jraVerified(){
     x.moistureCorner=null;
     x.moistureMeasuredAt=null;
    }
-   x.note='JRA公式測定データ。測定日時は日本標準時。未取得の値はnull';
+   x.note='馬場状態の日付と測定値の日時は別々に取得。測定日時は日本標準時。未取得の値はnull';
    if(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt)tracks[x.course]=x;
   }catch{}
  }
