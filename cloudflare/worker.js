@@ -176,10 +176,12 @@ export default {async fetch(request){
 
  if(path==='/parse-diagnostics'){
   const results=[];
-  for(const p of await jraDiagnostic()){
-   if(!['東京','京都'].includes(p.course)||p.status!==200)continue;
+  const sourcePages=await jraDiagnostic();
+  for(const p of sourcePages){
+   if(!['東京','京都'].includes(p.course)||p.status!==200){results.push({url:p.url,status:p.status??null,course:p.course??null,error:p.error??'ページを解析対象として認識できませんでした'});continue;}
    try{
-    const res=await fetch(p.url);
+    const res=await fetch(freshJraUrl(p.url));
+    if(!res.ok){results.push({course:p.course,url:p.url,status:res.status,error:'本文の取得に失敗'});continue;}
     const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
     const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
     const at=body.indexOf('馬場状態');
