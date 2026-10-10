@@ -163,7 +163,12 @@ async function jraVerified(){
     x.moistureCorner=null;
     x.moistureMeasuredAt=null;
    }
-   x.note='馬場状態の日付と測定値の日時は別々に取得。測定日時は日本標準時。未取得の値はnull';
+   x.conditionObservedAt=x.observedAt;
+   // The UI date refers to the latest fully verified turf measurements, not the condition bulletin.
+   const cushionDay=x.cushionMeasuredAt?.slice(0,10);
+   const moistureDay=x.moistureMeasuredAt?.slice(0,10);
+   if(cushionDay&&moistureDay&&cushionDay===moistureDay&&cushionDay>x.observedAt&&cushionDay<=measurementLimit)x.observedAt=cushionDay;
+   x.note='表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。';
    if(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt)tracks[x.course]=x;
   }catch{}
  }
