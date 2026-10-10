@@ -177,16 +177,20 @@ async function jraVerified(){
    const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
    const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit):null;
    const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',measurementLimit):null;
-   // Keep only this race weekend's Friday, Saturday and Sunday, with both official measurements present.
-   const meetingUTC=new Date(measurementLimit+'T00:00:00Z');
-   const weekday=meetingUTC.getUTCDay();
-   const friday=new Date(meetingUTC.getTime()-((weekday+2)%7)*86400000).toISOString().slice(0,10);
-   const cushionEntries=extractRecentMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit);
-   const moistEntries=extractRecentMeasurements(moistHTML,x.course,year,'moist',measurementLimit);
-   const byDate=new Map();
-   for(const item of cushionEntries){const day=item.time.slice(0,10);if(day>=friday&&!byDate.has(day))byDate.set(day,{date:day,cushion:item.cushion,cushionMeasuredAt:item.time})}
-   for(const item of moistEntries){const day=item.time.slice(0,10);const row=byDate.get(day);if(row&&row.moistureMeasuredAt===undefined){row.moistureFinish=item.finish;row.moistureCorner=item.corner;row.moistureMeasuredAt=item.time}}
-   x.history=[...byDate.values()].filter(row=>row.moistureMeasuredAt).sort((a,b)=>a.date.localeCompare(b.date));
+   // History is optional: never let it break the already verified latest feed.
+   x.history=[];
+   try{
+    // Keep only this race weekend's Friday, Saturday and Sunday, with both official measurements present.
+    const meetingUTC=new Date(measurementLimit+'T00:00:00Z');
+    const weekday=meetingUTC.getUTCDay();
+    const friday=new Date(meetingUTC.getTime()-((weekday+2)%7)*86400000).toISOString().slice(0,10);
+    const cushionEntries=extractRecentMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit);
+    const moistEntries=extractRecentMeasurements(moistHTML,x.course,year,'moist',measurementLimit);
+    const byDate=new Map();
+    for(const item of cushionEntries){const day=item.time.slice(0,10);if(day>=friday&&!byDate.has(day))byDate.set(day,{date:day,cushion:item.cushion,cushionMeasuredAt:item.time})}
+    for(const item of moistEntries){const day=item.time.slice(0,10);const row=byDate.get(day);if(row&&row.moistureMeasuredAt===undefined){row.moistureFinish=item.finish;row.moistureCorner=item.corner;row.moistureMeasuredAt=item.time}}
+    x.history=[...byDate.values()].filter(row=>row.moistureMeasuredAt).sort((a,b)=>a.date.localeCompare(b.date));
+   }catch(error){x.history=[];}
    x.railDay=officialRailDay(x.course,year,x.meetingNumber,x.meetingDay,x.rail);
    x.cushion=c?.cushion??null;
    x.cushionMeasuredAt=c?.time??null;
