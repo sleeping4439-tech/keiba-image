@@ -5,6 +5,7 @@ on:
       - 'scripts/parse-jra-laps.mjs'
       - 'scripts/parse-jra-laps.test.mjs'
       - 'scripts/build-laps.mjs'
+      - 'scripts/build-laps.test.mjs'
       - '.github/workflows/test-lap-parser.yml'
   workflow_dispatch:
 permissions:
@@ -17,4 +18,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test scripts/parse-jra-laps.test.mjs
+      - run: node --test scripts/*.test.mjs
