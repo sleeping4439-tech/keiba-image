@@ -3,14 +3,14 @@
 <title>馬場履歴｜ゆ馬場</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f7faf7;color:#253329;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}main{max-width:850px;margin:auto;padding:24px 16px 80px}a{color:#348253}header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}h1{font-size:25px;margin:0}.muted{color:#708075;font-size:13px;line-height:1.7}.card{background:#fff;border:1px solid #dce8df;border-radius:14px;padding:20px;margin:14px 0}button{font:inherit;border:1px solid #c5d8c9;border-radius:9px;background:#fff;padding:10px 14px;cursor:pointer}button.primary{background:#438b5d;color:white;border-color:#438b5d}button:disabled{opacity:.55;cursor:wait}label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}input,select,textarea{font:inherit;width:100%;border:1px solid #cbd9ce;border-radius:8px;padding:10px;background:white}textarea{min-height:100px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.record{width:100%;text-align:left;display:block;margin:8px 0}.hidden{display:none!important}.pill{font-size:12px;background:#edf5ef;border-radius:20px;padding:5px 10px}.error{color:#a03232}.status{min-height:20px;margin:12px 0;font-size:13px}@media(max-width:540px){.grid{grid-template-columns:1fr}.card{padding:16px}}
-</style></head><body><main><header><div><h1>馬場履歴</h1><div class="muted">日付・競馬場ごとの分析記録（非公開）</div></div><a href="./index.html">ゆ馬場に戻る →</a></header>
+.coursePreview{margin:14px 0;background:#f8fbf7;border:1px solid #dce8df;border-radius:12px;padding:12px}.coursePreview svg{display:block;width:100%;height:auto;max-height:420px}.courseTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.courseTools fieldset{border:1px solid #dce8df;border-radius:9px;min-width:0;padding:10px}.courseTools legend{font-weight:700;font-size:13px}.courseTools label{font-weight:500;margin:8px 0 3px}.courseTools select{padding:7px}.gripControls{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.gripControls label{display:flex;align-items:center;gap:6px;margin:0}.gripControls input{width:auto}.courseActions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.courseHint{font-size:12px;color:#708075;line-height:1.6}@media(max-width:540px){.courseTools{grid-template-columns:1fr}}</style></head><body><main><header><div><h1>馬場履歴</h1><div class="muted">日付・競馬場ごとの分析記録（非公開）</div></div><a href="./index.html">ゆ馬場に戻る →</a></header>
 <section id="setup" class="card hidden"><h2>初期設定待ち</h2><p class="muted">オンライン保存の接続設定がまだ完了していません。既存の「ゆ馬場」はこれまでどおり使えます。</p></section>
 <section id="auth" class="card hidden"><h2>本人確認</h2><p class="muted">履歴を閲覧・編集するにはGoogleアカウントでログインしてください。</p><button class="primary" id="login">Googleでログイン</button></section>
 <section id="app" class="hidden"><div class="row"><span id="userLabel" class="muted"></span><button id="logout">ログアウト</button></div>
 <section class="card"><h2>保存済みの履歴</h2><p class="muted">この一覧にはログインした本人の記録だけが表示されます。</p><div class="row"><button id="reload">更新</button><span id="count" class="muted"></span></div><div id="list"></div></section>
 <section class="card"><h2 id="editorTitle">履歴を編集</h2><div class="grid"><div><label for="date">日付</label><input type="date" id="date"></div><div><label for="track">競馬場</label><select id="track"><option>東京</option><option>京都</option></select></div><div><label for="condition">馬場状態（JRA）</label><input id="condition" readonly placeholder="取得データ未登録"></div><div><label for="cushion">クッション値（JRA）</label><input id="cushion" readonly placeholder="取得データ未登録"></div><div><label for="moistureFinish">含水率 G前（JRA）</label><input id="moistureFinish" readonly placeholder="取得データ未登録"></div><div><label for="moistureCorner">含水率 4角（JRA）</label><input id="moistureCorner" readonly placeholder="取得データ未登録"></div><div><label for="clock">時計レベル</label><select id="clock"><option value="">未設定</option></select></div></div>
 <label for="analysis">分析メモ</label><textarea id="analysis" placeholder="馬場傾向・修正した理由など"></textarea>
-<label for="settings">負荷・グリップ設定（保存済みJSON）</label><textarea id="settings" readonly placeholder="メイン画面との連携後に自動表示されます"></textarea>
+<h3>コース図の状態</h3><p class="muted">色分け・直線グリップをこの画面で編集して保存できます。保存後も再編集できます。</p><div class="coursePreview"><svg id="savedCourse" viewBox="0 0 1000 650" role="img" aria-label="保存する芝コースの負荷・グリップ図"><rect width="1000" height="650" rx="14" fill="#f8fbf7"/><g id="savedCourseLines"></g><g id="savedCourseGrips"></g><text x="500" y="325" text-anchor="middle" fill="#2e6247" font-size="26" font-weight="bold" id="courseCaption">東京</text></svg></div><div id="courseTools" class="courseTools"></div><p class="courseHint">負荷：なし（緑）／軽／やや軽／中／強（赤）。各区間の内・中・外を個別に指定できます。</p><div class="gripControls" id="gripControls"></div><div class="courseActions"><button id="importCurrent" type="button">現在のゆ馬場の設定を取り込む</button><button id="applyMain" type="button">この履歴をゆ馬場に反映する</button></div><p class="courseHint">「取り込む」はこの端末の現在の設定を編集欄へ読み込みます。「反映する」はこの履歴の設定をメイン画面に適用します（同じブラウザのみ）。</p><label for="settings">保存する負荷・グリップのJSON（確認用）</label><textarea id="settings" readonly></textarea>
 <p class="muted">JRAの測定値は参照用です。分析内容のみ編集できます。既存のメイン画面との自動同期は次の段階で接続します。</p>
 <button class="primary" id="save">この日の分析を保存</button><div id="status" class="status" role="status"></div></section></section>
 </main>
@@ -19,21 +19,56 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 const CONFIG={url:'https://wsjeeoctwojtgorgaboa.supabase.co',anonKey:'sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w'}; // Supabase project URL and publishable/anon key (never service_role)
 const $=id=>document.getElementById(id);
 const configured=CONFIG.url.startsWith('https://')&&CONFIG.anonKey.length>20;
-const levels=['超高速','高速','標準','低速','超低速'];
+const levels=['超高速','高速','標準','やや遅','遅'];
 $('clock').innerHTML+=[...levels].map(v=>'<option>'+v+'</option>').join('');
 $('date').value=new Date().toLocaleDateString('sv-SE');
 if(!configured){$('setup').classList.remove('hidden');}else{
 const db=createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let user=null, records=[];
 function msg(t,err=false){$('status').textContent=t;$('status').classList.toggle('error',err)}
-function fill(r){$('date').value=r?.race_date||new Date().toLocaleDateString('sv-SE');$('track').value=r?.track||'東京';const j=r?.jra_data||{};for(const k of ['condition','cushion','moistureFinish','moistureCorner'])$(k).value=j[k]??'';$('clock').value=r?.analysis?.clock||'';$('analysis').value=r?.analysis?.memo||'';$('settings').value=r?.analysis?.loadBySegment?JSON.stringify({loadBySegment:r.analysis.loadBySegment,grip:r.analysis.grip},null,2):'';msg('');}
+
+// Editable diagram state: the same segments, lane order, and colors as index.html.
+const segments=['道中','4角','直線'], lanes=['内','中','外'];
+const palette=['#51a66e','#9fc44e','#d6c94e','#e9a047','#d6574f'];
+const strength=['なし','軽','やや軽','中','強'];
+const blankLoad=()=>Object.fromEntries(segments.map(s=>[s,[0,0,0]]));
+let diagramLoad=blankLoad(),diagramGrip=[false,false,false];
+function validLoad(src){return src&&segments.every(s=>Array.isArray(src[s])&&src[s].length===3&&src[s].every(n=>Number.isInteger(n)&&n>=0&&n<=4))}
+function validGrip(src){return Array.isArray(src)&&src.length===3&&src.every(x=>typeof x==='boolean')}
+function setDiagram(load,grip){
+ diagramLoad=validLoad(load)?Object.fromEntries(segments.map(s=>[s,load[s].slice()])):blankLoad();
+ diagramGrip=validGrip(grip)?grip.slice():[false,false,false];
+ renderDiagram();
+}
+function renderDiagram(){
+ const tokyo=$('track').value==='東京',radii=[129,165,201];let paths='',arrows='';
+ for(const s of segments)diagramLoad[s].forEach((v,i)=>{
+  const r=radii[i],color=palette[v],w=36;
+  let d;
+  if(s==='道中')d='M280 '+(320+r)+' A'+r+' '+r+' 0 0 1 280 '+(320-r)+' H720 A'+r+' '+r+' 0 0 1 720 '+(320+r);
+  else if(s==='4角')d=tokyo?'M'+(280-r)+' 320 A'+r+' '+r+' 0 0 0 280 '+(320+r):'M'+(720+r)+' 320 A'+r+' '+r+' 0 0 1 720 '+(320+r);
+  else d='M720 '+(320+r)+' H280';
+  paths+='<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+w+'"/>';
+ });
+ diagramGrip.forEach((on,i)=>{if(!on)return;const y=320+radii[i];for(let x=660;x>=340;x-=75){arrows+='<g transform="translate('+x+' '+y+')"><path d="'+(tokyo?'M-18 0H13 M5 -8L13 0L5 8':'M18 0H-13 M-5 -8L-13 0L-5 8')+'" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>'}});
+ $('savedCourseLines').innerHTML=paths;$('savedCourseGrips').innerHTML=arrows;$('courseCaption').textContent=$('track').value;
+ $('courseTools').innerHTML=segments.map(s=>'<fieldset><legend>'+s+'</legend>'+lanes.map((lane,i)=>'<label>'+lane+'<select data-segment="'+s+'" data-lane="'+i+'">'+strength.map((name,v)=>'<option value="'+v+'" '+(diagramLoad[s][i]===v?'selected':'')+'>'+name+'</option>').join('')+'</select></label>').join('')+'</fieldset>').join('');
+ $('gripControls').innerHTML='<strong>直線グリップ</strong>'+lanes.map((lane,i)=>'<label><input type="checkbox" data-grip="'+i+'" '+(diagramGrip[i]?'checked':'')+'>'+lane+'</label>').join('');
+ $('settings').value=JSON.stringify({loadBySegment:diagramLoad,grip:diagramGrip},null,2);
+}
+$('courseTools').addEventListener('change',e=>{const s=e.target.dataset.segment,i=Number(e.target.dataset.lane);if(!segments.includes(s)||!Number.isInteger(i)||i<0||i>2)return;diagramLoad[s][i]=Number(e.target.value);renderDiagram()});
+$('gripControls').addEventListener('change',e=>{const i=Number(e.target.dataset.grip);if(i>=0&&i<3){diagramGrip[i]=e.target.checked;renderDiagram()}});
+$('track').addEventListener('change',renderDiagram);
+$('importCurrent').onclick=()=>{try{const saved=JSON.parse(localStorage.getItem('keiba-track-settings-v1')||'null'),track=$('track').value;if(!saved||!validLoad(saved.loadByTrack?.[track]))return msg('この端末に現在の設定が見つかりません',true);setDiagram(saved.loadByTrack[track],saved.gripByTrack?.[track]);if(levels.includes(saved.clockByTrack?.[track]))$('clock').value=saved.clockByTrack[track];msg('現在のゆ馬場の設定を取り込みました。保存ボタンで履歴に記録できます。')}catch(e){msg('設定の読み込みに失敗しました',true)}};
+$('applyMain').onclick=()=>{try{const key='keiba-track-settings-v1',saved=JSON.parse(localStorage.getItem(key)||'null')||{},track=$('track').value;saved.loadByTrack=saved.loadByTrack||{};saved.gripByTrack=saved.gripByTrack||{};saved.clockByTrack=saved.clockByTrack||{};saved.loadByTrack[track]=diagramLoad;saved.gripByTrack[track]=diagramGrip;if(levels.includes($('clock').value))saved.clockByTrack[track]=$('clock').value;localStorage.setItem(key,JSON.stringify(saved));msg('ゆ馬場に反映しました。メイン画面を再読み込みしてください。')}catch(e){msg('反映に失敗しました',true)}};
+function fill(r){$('date').value=r?.race_date||new Date().toLocaleDateString('sv-SE');$('track').value=r?.track||'東京';const j=r?.jra_data||{};for(const k of ['condition','cushion','moistureFinish','moistureCorner'])$(k).value=j[k]??'';$('clock').value=r?.analysis?.clock||'';$('analysis').value=r?.analysis?.memo||'';setDiagram(r?.analysis?.loadBySegment,r?.analysis?.grip);msg('');}
 async function load(){const {data,error}=await db.from('track_records').select('*').order('race_date',{ascending:false}).limit(500);if(error){msg('履歴を読み込めません: '+error.message,true);return}records=data||[];$('count').textContent=records.length+'件';$('list').replaceChildren();for(const r of records){const b=document.createElement('button');b.className='record';b.textContent=r.race_date+'｜'+r.track+'｜'+(r.analysis?.clock||'未設定')+(r.jra_data?.condition?'｜'+r.jra_data.condition:'');b.onclick=()=>{fill(r);$('editorTitle').scrollIntoView({behavior:'smooth',block:'start'})};$('list').append(b)}if(!records.length)$('list').textContent='保存済みの履歴はまだありません。'}
 async function sync(session){user=session?.user||null;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);if(user){$('userLabel').textContent=user.email||'ログイン中';await load();} }
 $('login').onclick=async()=>{const {error}=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert(error.message)};
 $('logout').onclick=async()=>{await db.auth.signOut();await sync(null)};
 $('reload').onclick=load;
-$('save').onclick=async()=>{if(!user)return;const date=$('date').value,track=$('track').value;if(!/^20\d{2}-\d{2}-\d{2}$/.test(date))return msg('日付を確認してください',true);const old=records.find(r=>r.race_date===date&&r.track===track);const analysis={...(old?.analysis||{}),clock:$('clock').value,memo:$('analysis').value};const payload={user_id:user.id,race_date:date,track,analysis,jra_data:old?.jra_data||{}};$('save').disabled=true;const {error}=await db.from('track_records').upsert(payload,{onConflict:'user_id,race_date,track'});$('save').disabled=false;if(error)return msg('保存に失敗しました: '+error.message,true);msg('保存しました');await load()};
-db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')sync(null)});
+$('save').onclick=async()=>{if(!user)return;const date=$('date').value,track=$('track').value;if(!/^20\d{2}-\d{2}-\d{2}$/.test(date))return msg('日付を確認してください',true);const old=records.find(r=>r.race_date===date&&r.track===track);const analysis={...(old?.analysis||{}),clock:$('clock').value,memo:$('analysis').value,loadBySegment:diagramLoad,grip:diagramGrip};const payload={user_id:user.id,race_date:date,track,analysis,jra_data:old?.jra_data||{}};$('save').disabled=true;const {error}=await db.from('track_records').upsert(payload,{onConflict:'user_id,race_date,track'});$('save').disabled=false;if(error)return msg('保存に失敗しました: '+error.message,true);msg('保存しました');await load()};
+setDiagram(null,null);db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')sync(null)});
 const {data:{session}}=await db.auth.getSession();await sync(session);
 }
 </script></body></html>
