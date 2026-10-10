@@ -4,11 +4,12 @@ const BASE = 'https://www.jra.go.jp/keiba/baba/';
 const HEADERS = {'content-type':'application/json; charset=utf-8','access-control-allow-origin':'https://sleeping4439-tech.github.io','cache-control':'public, max-age=600'};
 function respond(data,status=200){return new Response(JSON.stringify(data),{status,headers:HEADERS});}
 function textOnly(s){return s.replace(/<[^>]*>/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();}
+function freshJraUrl(url){const u=new URL(url);u.searchParams.set('_fresh',String(Date.now()));return u.toString();}
 async function jraDiagnostic(){
  return Promise.all(JRA_PAGES.map(async path=>{
   const url=BASE+path;
   try{
-   const response=await fetch(url);
+   const response=await fetch(freshJraUrl(url));
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const title=textOnly((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
    const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1]||null;
@@ -129,7 +130,7 @@ function extractSourceMeasurements(html,course,year,type,conditionDate){
 async function jraVerified(){
  const pages=await jraDiagnostic();
  const [cushionResult,moistResult]=await Promise.allSettled(['_data_cushion.html','_data_moist.html'].map(async file=>{
-  const res=await fetch(BASE+file);
+  const res=await fetch(freshJraUrl(BASE+file));
   if(!res.ok)throw Error(file+' HTTP '+res.status);
   return new TextDecoder('shift_jis').decode(await res.arrayBuffer());
  }));
@@ -139,7 +140,7 @@ async function jraVerified(){
  for(const page of pages){
   if(!['東京','京都'].includes(page.course)||page.status!==200)continue;
   try{
-   const response=await fetch(page.url);
+   const response=await fetch(freshJraUrl(page.url));
    if(!response.ok)continue;
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const x=extractCondition(html,page.title,page.url);
@@ -336,7 +337,7 @@ export default {async fetch(request){
  const tracks=await jraVerified();
  const complete=['東京','京都'].every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
  const status=complete?'complete':Object.keys(tracks).length?'partial':'unavailable';
- return respond({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status,reason:complete?'東京・京都の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'});
+ return new Response(JSON.stringify({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status,reason:complete?'東京・京都の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
 }
  return respond({ok:false,error:'not_found'},404);
 }};
