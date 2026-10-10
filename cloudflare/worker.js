@@ -178,7 +178,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return respond({ok:true,version:18,racesFix:'http-diagnostics'});
+ if(path==='/health')return new Response(JSON.stringify({ok:true,version:19,build:'turf-measurement-date-fix-20261010',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/freshness-diagnostics'){
