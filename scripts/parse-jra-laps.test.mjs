@@ -11,3 +11,5 @@ test('parses actual JRA-style turf result',()=>{
 test('rejects dirt',()=>assert.equal(parseJraResult(html.replace('（芝・右）','（ダート・右）')),null));
 test('rejects incomplete splits',()=>assert.equal(parseJraResult(html.replace(' - 12.0 上り',' 上り')),null));
 test('rejects missing winning time',()=>assert.equal(parseJraResult(html.replaceAll('1:09.5','')),null));
+
+test('rejects splits inconsistent with winning time',()=>assert.equal(parseJraResult(html.replace('12.1 - 10.8','13.1 - 10.8')),null));
