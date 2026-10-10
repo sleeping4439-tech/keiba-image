@@ -74,7 +74,7 @@
 <!-- Title centered on the horizontal divider (center x=500). -->
 <text id="trackName" x="500" y="286" text-anchor="middle" font-size="59" font-weight="750">東京</text>
 <!-- 現在は端末の日付を表示。取得連携後はデータの対象日を表示する。 -->
-<text id="infoDate" x="302" y="273" text-anchor="start" font-size="23" font-weight="500">—</text><g id="dateArrow" class="dateArrow" role="button" tabindex="0" aria-label="測定日を選択" aria-expanded="false" style="display:none"><rect x="387" y="244" width="39" height="39" fill="transparent"/><path d="M396 257 l10 11 10 -11" stroke="#df4434" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
+<text id="infoDate" x="302" y="273" text-anchor="start" font-size="23" font-weight="500">—</text><g id="dateArrow" class="dateArrow" role="button" tabindex="0" aria-label="測定日を選択" aria-expanded="false" style="display:none"><rect x="387" y="244" width="39" height="39" fill="transparent"/><path d="M398 259 l8 8 8 -8" stroke="#df4434" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></g>
 <!-- Four independent fields, styled as compact badges, based on supplied layout. -->
 <g font-size="15" text-anchor="middle" font-weight="600">
 <rect x="604" y="236" width="47" height="26" rx="5" fill="#dedede"/>
@@ -444,7 +444,7 @@ function renderJRA(){
  $('infoDate').textContent=valid?jraDateLabel(date):'—';
  // SVG arrow is positioned immediately after the actual date text, without shifting the layout.
  const width=$('infoDate').getComputedTextLength();
- dateArrow.setAttribute('transform','translate('+(width-82)+',0)');
+ dateArrow.setAttribute('transform','translate('+(width-89)+',0)');
  dateArrow.style.display=history.length>1?'':'none';
  dateChoice.innerHTML=history.map(r=>'<button type="button" role="option" data-date="'+r.date+'" aria-selected="'+(r.date===date)+'">'+jraDateLabel(r.date)+'</button>').join('');
  if(history.length<2)closeDateChoice();
