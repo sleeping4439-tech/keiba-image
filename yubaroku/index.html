@@ -51,9 +51,9 @@ const stateText=(message,error=false)=>{for(const id of ['cloudStatus','profileS
 function markDraft(){stateText(cloudReady?'未保存の変更があります':'ローカル下書き（クラウド未接続）')}
 const originalDraftSave=save;
 save=function(){originalDraftSave();markDraft()};
-function validateCloudConfig(c){try{const u=new URL(c.url);return u.protocol==='https:'&&/^[a-z0-9-]+\\.supabase\\.co$/i.test(u.hostname)&&typeof c.key==='string'&&c.key.length>15}catch{return false}}
+function validateCloudConfig(c){try{const u=new URL(c.url);return u.protocol==='https:'&&/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname)&&typeof c.key==='string'&&c.key.length>15}catch{return false}}
 function cloudHeaders(auth=true){const h={'apikey':cloudCfg.key,'Content-Type':'application/json'};if(auth&&cloudSession?.access_token)h.Authorization='Bearer '+cloudSession.access_token;return h}
-async function cloudRequest(path,opts={}){if(!validateCloudConfig(cloudCfg))throw Error('SupabaseのURLと公開キーを設定してください');const res=await fetch(cloudCfg.url.replace(/\\/$/,'')+path,{...opts,headers:{...cloudHeaders(),...(opts.headers||{})}});let body=null;try{body=await res.json()}catch{}if(!res.ok)throw Error(body?.msg||body?.message||body?.error_description||body?.error||('通信エラー '+res.status));return{body,status:res.status}}
+async function cloudRequest(path,opts={}){if(!validateCloudConfig(cloudCfg))throw Error('SupabaseのURLと公開キーを設定してください');const res=await fetch(cloudCfg.url.replace(/\/$/,'')+path,{...opts,headers:{...cloudHeaders(),...(opts.headers||{})}});let body=null;try{body=await res.json()}catch{}if(!res.ok)throw Error(body?.msg||body?.message||body?.error_description||body?.error||('通信エラー '+res.status));return{body,status:res.status}}
 async function initCloudAuth(){if(!validateCloudConfig(cloudCfg)){stateText('クラウド接続設定を確認してください',true);return}
  try{const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
  cloudClient=createClient(cloudCfg.url,cloudCfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce',storageKey:'yubaroku-google-auth-v1'}});
