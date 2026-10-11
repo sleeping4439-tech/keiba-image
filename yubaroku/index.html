@@ -70,7 +70,55 @@ function applyLinkedHorse(){const name=linkedHorseName();if(!name)return;const h
 function syncView(){if(linkedHorseName()){applyLinkedHorse();return}if(active&&!horses.some(h=>h.id===active))showHome();else if(active){$('horseName').value=current().name;$('memo').value=current().memo;renderProfile()}else renderList()}
 async function fetchCloud(){await ensureSession();const {body}=await cloudRequest('/rest/v1/yubaroku_store?select=revision,data&owner_id=eq.'+encodeURIComponent(cloudSession.user.id)+'&limit=1',{method:'GET'});return Array.isArray(body)&&body.length?body[0]:null}
 async function cloudLoad(){if(cloudBusy)return;cloudBusy=true;stateText('クラウドから読込中…');try{const row=await fetchCloud();const remote=validHorses(row?.data?.horses||[]);if(JSON.stringify(horses)!==JSON.stringify(remote)&&horses.length&&!confirm('クラウドの'+remote.length+'頭を読み込み、現在のローカル下書き（'+horses.length+'頭）を置き換えます。未保存の変更は失われます。続けますか？')){stateText('読み込みをキャンセルしました');return}horses=remote;cloudRevision=row?.revision??null;cloudReady=true;originalDraftSave();savedSnapshot=JSON.stringify(horses);syncView();stateText('クラウド読込済み・保存済み（'+horses.length+'頭）')}catch(e){stateText('読込失敗：'+e.message,true)}finally{cloudBusy=false}}
-async function cloudSave(){if(cloudBusy)return;cloudBusy=true;stateText('クラウドに保存中…');try{await ensureSession();const safe=validHorses(horses);const owner=cloudSession.user.id;const data={version:1,horses:safe};if(cloudRevision===null){const response=await cloudRequest('/rest/v1/yubaroku_store',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({owner_id:owner,revision:1,data})});cloudRevision=response.body?.[0]?.revision??1}else{const response=await cloudRequest('/rest/v1/yubaroku_store?owner_id=eq.'+encodeURIComponent(owner)+'&revision=eq.'+cloudRevision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({revision:cloudRevision+1,data})});if(!Array.isArray(response.body)||response.body.length!==1)throw Error('別端末でデータが更新されています。先にJSONバックアップを書き出し、クラウドを読み込んで変更を確認してください。');cloudRevision=response.body[0].revision}cloudReady=true;originalDraftSave();savedSnapshot=JSON.stringify(horses);stateText('保存完了（'+horses.length+'頭・版'+cloudRevision+'）')}catch(e){stateText('保存失敗：'+e.message,true);alert('クラウド保存に失敗しました。\n'+e.message+'\n\nローカル下書きは残っています。')}finally{cloudBusy=false}}
+async function cloudSave(){
+ if(cloudBusy)return;
+ cloudBusy=true;stateText('クラウドの保存状態を確認中…');
+ try{
+  await ensureSession();
+  const owner=cloudSession.user.id;
+  let safe=validHorses(horses);
+  // Always inspect the server before writing: a new device may have no local revision.
+  const remoteRow=await fetchCloud();
+  const remoteRevision=remoteRow?.revision??null;
+  if(remoteRevision!==null&&cloudRevision!==null&&remoteRevision!==cloudRevision){
+   throw Error('別端末でクラウドのデータが更新されています。現在の変更は端末に残っています。先にバックアップを書き出し、クラウドとの内容を確認してください。');
+  }
+  if(remoteRevision!==null&&cloudRevision===null){
+   const remote=validHorses(remoteRow?.data?.horses||[]);
+   const remoteById=new Map(remote.map(h=>[h.id,h]));
+   const localById=new Map(safe.map(h=>[h.id,h]));
+   const changed=[];
+   for(const local of safe){
+    const saved=remoteById.get(local.id);
+    if(saved&&JSON.stringify(saved)!==JSON.stringify(local))changed.push(local.name);
+   }
+   if(changed.length){
+    throw Error('クラウド上の同じ馬と内容が異なります（'+changed.slice(0,3).join('、')+'）。誤って上書きしないため保存を停止しました。JSONバックアップを書き出してから、クラウドのデータを読み込んでください。');
+   }
+   // Merge previously saved horses with newly added local horses, never discard remote entries.
+   const merged=remote.slice();
+   for(const local of safe)if(!remoteById.has(local.id))merged.push(local);
+   safe=validHorses(merged);
+  }
+  const data={version:1,horses:safe};
+  let newRevision;
+  if(remoteRevision===null){
+   const response=await cloudRequest('/rest/v1/yubaroku_store',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({owner_id:owner,revision:1,data})});
+   newRevision=response.body?.[0]?.revision??1;
+  }else{
+   const response=await cloudRequest('/rest/v1/yubaroku_store?owner_id=eq.'+encodeURIComponent(owner)+'&revision=eq.'+remoteRevision,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({revision:remoteRevision+1,data})});
+   if(!Array.isArray(response.body)||response.body.length!==1)throw Error('保存中にクラウドが更新されました。現在の変更は端末に残っています。再読み込みして内容を確認してください。');
+   newRevision=response.body[0].revision;
+  }
+  horses=safe;cloudRevision=newRevision;cloudReady=true;
+  originalDraftSave();savedSnapshot=JSON.stringify(horses);syncView();
+  stateText('保存完了（'+horses.length+'頭・版'+cloudRevision+'）');
+ }catch(e){
+  const message=String(e.message||e);
+  stateText('保存失敗：'+message,true);
+  alert('クラウド保存に失敗しました。\n'+message+'\n\n端末の下書きは残っています。');
+ }finally{cloudBusy=false}
+}
 $('cloudSave').onclick=cloudSave;$('profileSave').onclick=cloudSave;$('cloudLoad').onclick=cloudLoad;
 $('cloudSetup').onclick=()=>{dialog('<h3>クラウド接続</h3><p>「ゆ馬場」と同じGoogleアカウントでログインできます。初回はGoogleの認証画面へ移動します。</p><p class="setup-note">Supabaseプロジェクト：yubaba。クラウドへの保存は「保存する」を押した時だけ実行されます。</p><div class="actions"><button id="cloudLogout">ログアウト</button><button id="cancel">閉じる</button><button class="yes" id="cloudLogin">Googleでログイン</button></div>');
  $('cancel').onclick=close;
