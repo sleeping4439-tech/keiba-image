@@ -42,9 +42,9 @@
 .elevationHeading{font-size:14px;font-weight:750;color:#234b3d;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
 .elevationHeading span{font-size:11px;font-weight:400;color:#83988d}
 .elevationSvg{display:block;width:100%;height:auto;margin:10px auto 0}.officialElevation img{display:block;max-width:100%;width:auto;height:auto;margin:10px auto 0}.officialElevation p{font-size:11px;margin:7px 0 0;color:#567365}.officialElevation a{color:#326b4e}.officialElevation[hidden]{display:none}
-@keyframes windDrift{0%{opacity:0;translate:-12px 0}25%{opacity:.95}75%{opacity:.95}100%{opacity:0;translate:15px 0}}
-.windArrow{animation:windDrift 3s ease-in-out infinite;fill:none;stroke:#b8eeff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke;filter:drop-shadow(0 0 1px #236d90)}
-.windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
+@keyframes windDrift{0%{opacity:0;transform:translateX(-12px)}25%{opacity:.95}75%{opacity:.95}100%{opacity:0;transform:translateX(15px)}}
+.windArrow{fill:none;stroke:#b8eeff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke;filter:drop-shadow(0 0 1px #236d90)}
+.windArrow .windDrift{animation:windDrift 3s ease-in-out infinite}.windArrow:nth-child(2) .windDrift{animation-delay:-.65s}.windArrow path{stroke:#b8eeff;paint-order:stroke;stroke-width:6}
 @media(max-width:600px){.windArrow{stroke-width:7}}
 
 .appTitle{text-align:center;font-size:29px;font-weight:800;letter-spacing:.09em;color:#245b3b;margin:6px 0 17px;line-height:1.35}
@@ -67,8 +67,8 @@
 </g>
 <!-- コース外に5つの風向アニメ。取得後は実際の風向へ回転する -->
 <g id="windField" aria-label="風向未取得" style="display:none">
-  <g class="windArrow" style="animation-delay:0s" transform="translate(140 320)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
-  <g class="windArrow" style="animation-delay:-.65s" transform="translate(860 320)"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g>
+  <g class="windArrow" style="animation-delay:0s" transform="translate(140 320)"><g class="windDrift"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g></g>
+  <g class="windArrow" style="animation-delay:-.65s" transform="translate(860 320)"><g class="windDrift"><path d="M-18 0 H15 M6 -9 L16 0 L6 9"/></g></g>
 </g>
 <g fill="#222">
 <!-- Title centered on the horizontal divider (center x=500). -->
@@ -419,7 +419,7 @@ function showLiveWind(){
  field.querySelectorAll('.windArrow').forEach((arrow,i)=>{
   const [x,y]=positions[i];
   arrow.setAttribute('transform','translate('+x+' '+y+') rotate('+angle+')');
-  arrow.style.animationDuration=(2.6+Math.min(2,Math.max(0,4-d.speed)*0.25)).toFixed(2)+'s';
+  arrow.querySelector('.windDrift').style.animationDuration=(2.6+Math.min(2,Math.max(0,4-d.speed)*0.25)).toFixed(2)+'s';
  });
 }
 async function updateWind(){
