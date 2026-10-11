@@ -93,10 +93,11 @@ async function cloudSave(){
     if(saved&&JSON.stringify(saved)!==JSON.stringify(local))changed.push(local.name);
    }
    if(changed.length){
-    throw Error('クラウド上の同じ馬と内容が異なります（'+changed.slice(0,3).join('、')+'）。誤って上書きしないため保存を停止しました。JSONバックアップを書き出してから、クラウドのデータを読み込んでください。');
+    const message='クラウドとこの端末で内容が異なる馬が'+changed.length+'頭あります（'+changed.slice(0,4).join('、')+'）。\n\nこの端末の内容を優先して保存しますか？\n\n「OK」：表示中の変更をクラウドへ保存（クラウドだけにある他の馬は残します）\n「キャンセル」：何も上書きせず終了します。';
+    if(!confirm(message))throw Error('保存をキャンセルしました。端末のデータはそのまま残っています。');
    }
-   // Merge previously saved horses with newly added local horses, never discard remote entries.
-   const merged=remote.slice();
+   // Keep cloud-only horses; prefer explicitly confirmed local edits for matching IDs.
+   const merged=remote.map(saved=>localById.get(saved.id)||saved);
    for(const local of safe)if(!remoteById.has(local.id))merged.push(local);
    safe=validHorses(merged);
   }
