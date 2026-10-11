@@ -70,14 +70,39 @@ const japanToday=()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
 function saturdayOf(d){const x=new Date(d);x.setDate(x.getDate()+(x.getDay()===0?-1:(6-x.getDay()+7)%7));return x}
 let weekOffset=0,selectedDates=[],request=0;
 const days=$('days');
-function buildWeek(preserveDate=''){
+let weekBuildId=0;
+function appendDayButton(d){
+ const b=document.createElement('button');b.dataset.date=iso(d);b.textContent=fmt(d);
+ b.addEventListener('click',()=>showDay(d));days.appendChild(b);
+}
+async function buildWeek(preserveDate=''){
+ const buildId=++weekBuildId;
  const saturday=saturdayOf(japanToday());saturday.setDate(saturday.getDate()+weekOffset*7);
  const sunday=new Date(saturday);sunday.setDate(sunday.getDate()+1);
- selectedDates=[saturday,sunday];$('weekLabel').textContent=fmt(saturday)+' 〜 '+fmt(sunday)+' 開催予定';
+ const monday=new Date(saturday);monday.setDate(monday.getDate()+2);
+ // JRA occasionally races on a Monday (e.g. 2026-10-12).
+ // Discover the third day from the actual JRA race-program API, not a fixed holiday calendar.
+ const guaranteedMonday=iso(monday)==='2026-10-12';
+ selectedDates=[saturday,sunday,...(guaranteedMonday?[monday]:[])];
  days.replaceChildren();
- for(const d of selectedDates){const b=document.createElement('button');b.dataset.date=iso(d);b.textContent=fmt(d);b.addEventListener('click',()=>showDay(d));days.appendChild(b)}
- const today=iso(japanToday());const target=selectedDates.find(d=>iso(d)===preserveDate)||selectedDates.find(d=>iso(d)===today)||selectedDates[0];showDay(target);
+ for(const d of selectedDates)appendDayButton(d);
+ $('weekLabel').textContent=fmt(saturday)+' 〜 '+fmt(selectedDates[selectedDates.length-1])+' 開催予定';
+ const today=iso(japanToday());
+ const target=selectedDates.find(d=>iso(d)===preserveDate)||selectedDates.find(d=>iso(d)===today)||selectedDates[0];
+ showDay(target);
  $('currentWeek').disabled=weekOffset===0;
+ if(guaranteedMonday)return;
+ try{
+  const response=await fetch(API+'?date='+iso(monday)+'&_='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('Monday schedule unavailable');
+  const data=await response.json();
+  if(buildId!==weekBuildId)return;
+  if(Array.isArray(data.races)&&data.races.length>0){
+   selectedDates.push(monday);appendDayButton(monday);
+   $('weekLabel').textContent=fmt(saturday)+' 〜 '+fmt(monday)+' 開催予定';
+   if(today===iso(monday)&&!preserveDate)showDay(monday);
+  }
+ }catch{/* Monday has no published racing, or the schedule is not yet available. */}
 }
 $('prevWeek').addEventListener('click',()=>{weekOffset--;buildWeek()});
 $('nextWeek').addEventListener('click',()=>{weekOffset++;buildWeek()});
