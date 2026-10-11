@@ -210,10 +210,19 @@ function renderMemo(){
  $('memoTrack').textContent=state.track;
  $('trackMemo').value=memoByTrack[state.track]||'';
 }
+// 入力中は画面内の下書きだけ更新。フォーカスが外れたときに一度だけ保存する。
 $('trackMemo').addEventListener('input',e=>{
  memoByTrack[state.track]=e.target.value;
- try{localStorage.setItem('keiba-memo-'+state.track,e.target.value)}catch(err){}
- document.dispatchEvent(new CustomEvent('yubaba-analysis-changed',{detail:{track:state.track}}));
+});
+$('trackMemo').addEventListener('blur',e=>{
+ const track=state.track;
+ const value=e.target.value;
+ memoByTrack[track]=value;
+ let previous='';
+ try{previous=localStorage.getItem('keiba-memo-'+track)||''}catch(err){}
+ if(previous===value)return;
+ try{localStorage.setItem('keiba-memo-'+track,value)}catch(err){}
+ document.dispatchEvent(new CustomEvent('yubaba-analysis-changed',{detail:{track}}));
 });
 renderMemo();
 // Future Worker payload contract. Demo values only; never claim live updates.
