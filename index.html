@@ -477,7 +477,7 @@ dateArrow.addEventListener('click',()=>{
  dateArrow.setAttribute('aria-expanded',String(!dateChoice.hidden));
 });
 // The date label shares the arrow's existing date selector without visual changes.
-$('infoDate').addEventListener('click',()=>{if(dateArrow.style.display!=='none')dateArrow.dispatchEvent(new MouseEvent('click',{bubbles:true}))});
+$('infoDate').addEventListener('click',e=>{if(dateArrow.style.display==='none')return;e.stopPropagation();dateArrow.dispatchEvent(new MouseEvent('click',{bubbles:true}))});
 dateArrow.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();dateArrow.dispatchEvent(new MouseEvent('click'))}if(e.key==='Escape')closeDateChoice()});
 dateChoice.addEventListener('click',e=>{
  const b=e.target.closest('[data-date]');if(!b)return;
