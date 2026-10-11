@@ -444,13 +444,38 @@ function showLiveWind(){
   drift.style.animationDelay=(-i*0.32)+'s';
  });
 }
+const WIND_COORDS={'東京':[35.6628,139.4855],'京都':[34.9068,135.7246]};
+function parseWindRecord(record){
+ if(!record)return null;
+ const speed=Number(record.speed),direction=Number(record.direction);
+ return Number.isFinite(speed)&&speed>=0&&Number.isFinite(direction)?{speed,direction}:null;
+}
+async function fetchWindDirect(track){
+ const [lat,lon]=WIND_COORDS[track];
+ const url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=Asia%2FTokyo';
+ const response=await fetch(url,{cache:'no-store'});
+ if(!response.ok)throw Error('Open-Meteo HTTP '+response.status);
+ const json=await response.json(),current=json.current||{};
+ return parseWindRecord({speed:current.wind_speed_10m,direction:current.wind_direction_10m});
+}
+let windRequest=0;
 async function updateWind(){
+ const request=++windRequest;
  try{
-  const response=await fetch(WEATHER_API,{cache:'no-store'});
+  const response=await fetch(WEATHER_API+'?_='+Date.now(),{cache:'no-store'});
   if(!response.ok)throw Error('weather unavailable');
-  windByTrack=(await response.json()).tracks||{};
+  const data=await response.json(),tracks=data.tracks||{};
+  windByTrack=Object.fromEntries(Object.entries(tracks).map(([key,value])=>[key,parseWindRecord(value)]).filter(([,value])=>value));
  }catch{windByTrack={};}
+ if(request!==windRequest)return;
  showLiveWind();
+ const missing=Object.keys(WIND_COORDS).filter(track=>!windByTrack[track]);
+ if(missing.length){
+  const results=await Promise.allSettled(missing.map(fetchWindDirect));
+  if(request!==windRequest)return;
+  results.forEach((result,i)=>{if(result.status==='fulfilled'&&result.value)windByTrack[missing[i]]=result.value});
+  showLiveWind();
+ }
 }
 document.getElementById('tabs').addEventListener('click',showLiveWind);
 updateWind();
