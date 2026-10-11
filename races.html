@@ -67,7 +67,7 @@ $('loadEntries').addEventListener('click',()=>loadEntries($('sourceInput').value
 const fmt=d=>(d.getMonth()+1)+'/'+d.getDate()+'（'+'日月火水木金土'[d.getDay()]+'）';
 const iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
 const japanToday=()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const get=k=>Number(parts.find(p=>p.type===k).value);return new Date(get('year'),get('month')-1,get('day'),12)};
-function saturdayOf(d){const x=new Date(d);x.setDate(x.getDate()+(6-x.getDay()+7)%7);return x}
+function saturdayOf(d){const x=new Date(d);x.setDate(x.getDate()+(x.getDay()===0?-1:(6-x.getDay()+7)%7));return x}
 let weekOffset=0,selectedDates=[],request=0;
 const days=$('days');
 function buildWeek(preserveDate=''){
@@ -76,7 +76,7 @@ function buildWeek(preserveDate=''){
  selectedDates=[saturday,sunday];$('weekLabel').textContent=fmt(saturday)+' 〜 '+fmt(sunday)+' 開催予定';
  days.replaceChildren();
  for(const d of selectedDates){const b=document.createElement('button');b.dataset.date=iso(d);b.textContent=fmt(d);b.addEventListener('click',()=>showDay(d));days.appendChild(b)}
- const target=selectedDates.find(d=>iso(d)===preserveDate)||selectedDates[0];showDay(target);
+ const today=iso(japanToday());const target=selectedDates.find(d=>iso(d)===preserveDate)||selectedDates.find(d=>iso(d)===today)||selectedDates[0];showDay(target);
  $('currentWeek').disabled=weekOffset===0;
 }
 $('prevWeek').addEventListener('click',()=>{weekOffset--;buildWeek()});
