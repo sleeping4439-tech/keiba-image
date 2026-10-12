@@ -62,8 +62,8 @@ async function loadAutoEntries(date,track,number,manualFallback=''){
  target.innerHTML='<div class="empty">出馬表を自動特定できませんでした（'+error+'）。下の欄から公式URLを指定することもできます。</div>';
 }
 function raceTitleParts(raw){
- const name=normalizeRaceGrade(raw).replace(/(\\d),(?=\\d{3}\\b)/g,'$1').replace(/\\s+/g,' ').trim();
- const dist=name.match(/(?:^|\\s)([12]\\d{3}|[34]\\d{3})(?:\\s*)（(?:芝|ダ|障)[^）]*）/);
+ const name=normalizeRaceGrade(raw).replace(/(\d),(?=\d{3}\b)/g,'$1').replace(/\s+/g,' ').trim();
+ const dist=name.match(/(?:^|\s)(\d{3,4})\s*（(?:芝|ダ|障)[^）]*）/);
  if(!dist)return {main:name,sub:''};
  const before=name.slice(0,dist.index).trim();
  const after=name.slice(dist.index).trim();
