@@ -125,6 +125,17 @@ function backupRaceData(date){
 }
 function cachedRaceData(date){try{const d=JSON.parse(localStorage.getItem('keibaRaceCache:'+date)||'null');return d&&Array.isArray(d.races)&&d.races.length?d:null}catch{return null}}
 function rescueRaceData(date){return cachedRaceData(date)||backupRaceData(date)}
+function normalizeRaceGrade(text){
+ return String(text||'')
+  .replace(/&(?:amp;)?#(?:x0*?85(?:45)?|0*?8545);?/gi,'Ⅱ')
+  .replace(/&#(?:8545|x2161);?/gi,'Ⅱ')
+  .replace(/&#(?:8544|x2160);?/gi,'Ⅰ')
+  .replace(/&#(?:8546|x2162);?/gi,'Ⅲ')
+  .replace(/(?:&amp;)?#(?:8544|8545|8546);?/gi,m=>({'8544':'Ⅰ','8545':'Ⅱ','8546':'Ⅲ'})[(m.match(/854[456]/)||[])[0]]||m)
+  .replace(/G(?:&(?:amp;)?#|#)(?:x(?:2160|2161|2162)|(?:8544|8545|8546));?/gi,m=>{const v=m.match(/216[012]|854[456]/i)?.[0]?.toLowerCase();return ({'2160':'GⅠ','2161':'GⅡ','2162':'GⅢ','8544':'GⅠ','8545':'GⅡ','8546':'GⅢ'})[v]||m})
+  .replace(/G[ⅠⅡⅢ]/g,m=>({'GⅠ':'G1','GⅡ':'G2','GⅢ':'G3'})[m])
+  .replace(/G[ⅰⅱⅲ]/g,m=>({'Gⅰ':'G1','Gⅱ':'G2','Gⅲ':'G3'})[m]);
+}
 function showDay(d){
  activeDate=iso(d);const id=++request;
  days.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.date===iso(d)));
@@ -153,7 +164,7 @@ function showDay(d){
    for(const race of list){
     const row=document.createElement('div');row.className='row race-item';
     const title=document.createElement('button');
-    title.textContent=race.number+'R  '+race.name+'  ›';
+    title.textContent=race.number+'R  '+normalizeRaceGrade(race.name)+'  ›';
     title.addEventListener('click',()=>openRace(iso(d),activeTrack,race));
     row.appendChild(title);area.appendChild(row);
    }
