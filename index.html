@@ -493,12 +493,15 @@ function renderJRA(){
  const x=jraTracks[state.track];
  const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
  const history=valid&&Array.isArray(x.history)?x.history.filter(r=>/^20\d{2}-\d{2}-\d{2}$/.test(r.date)&&Number.isFinite(r.cushion)&&Number.isFinite(r.moistureFinish)&&Number.isFinite(r.moistureCorner)):[];
+ const latestDate=valid?[x.observedAt,x.cushionMeasuredAt?.slice(0,10),x.moistureMeasuredAt?.slice(0,10)].filter(d=>/^20\d{2}-\d{2}-\d{2}$/.test(d||'')).sort().at(-1):null;
  const selected=history.find(r=>r.date===chosenJraDates[state.track])||null;
  const row=selected||x;
- const date=selected?.date||x?.observedAt;
- $('jraCushion').textContent=valid&&Number.isFinite(row.cushion)?row.cushion.toFixed(1):'—';
- $('jraMoistureFinish').textContent='G前 '+(valid&&Number.isFinite(row.moistureFinish)?row.moistureFinish.toFixed(1)+'%':'—');
- $('jraMoistureCorner').textContent='4角 '+(valid&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
+ const date=selected?.date||latestDate;
+ const cushionDate=selected?.cushionMeasuredAt?.slice(0,10)||x?.cushionMeasuredAt?.slice(0,10);
+ const moistureDate=selected?.moistureMeasuredAt?.slice(0,10)||x?.moistureMeasuredAt?.slice(0,10);
+ $('jraCushion').textContent=valid&&cushionDate===date&&Number.isFinite(row.cushion)?row.cushion.toFixed(1):'—';
+ $('jraMoistureFinish').textContent='G前 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureFinish)?row.moistureFinish.toFixed(1)+'%':'—');
+ $('jraMoistureCorner').textContent='4角 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
  // A condition bulletin is not automatically valid for earlier measurement dates.
  $('jraCondition').textContent=valid&&(!selected||date>=x.conditionObservedAt)?x.condition:'—';
  const meta=courseMeta[state.track];
@@ -514,9 +517,10 @@ function renderJRA(){
  // SVG arrow is positioned immediately after the actual date text, without shifting the layout.
  const width=$('infoDate').getComputedTextLength();
  dateArrow.setAttribute('transform','translate('+(width-89)+',0)');
- dateArrow.style.display=history.length>1?'':'none';
- dateChoice.innerHTML=history.map(r=>'<button type="button" role="option" data-date="'+r.date+'" aria-selected="'+(r.date===date)+'">'+jraDateLabel(r.date)+'</button>').join('');
- if(history.length<2)closeDateChoice();
+ const dateOptions=latestDate&&!history.some(r=>r.date===latestDate)?[...history,{date:latestDate}]:history;
+ dateArrow.style.display=dateOptions.length>1?'':'none';
+ dateChoice.innerHTML=dateOptions.map(r=>'<button type="button" role="option" data-date="'+r.date+'" aria-selected="'+(r.date===date)+'">'+jraDateLabel(r.date)+'</button>').join('');
+ if(dateOptions.length<2)closeDateChoice();
 }
 dateArrow.addEventListener('click',()=>{
  if(dateArrow.style.display==='none')return;
