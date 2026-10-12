@@ -169,14 +169,16 @@ document.getElementById('recordInfoButton').addEventListener('click',()=>{
  if(recordInfoDialog.open)recordInfoDialog.close();else recordInfoDialog.showModal();
 });
 document.getElementById('recordInfoClose').addEventListener('click',()=>recordInfoDialog.close());
+const ALL_JRA_TRACKS=['札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
+for(const track of ALL_JRA_TRACKS){state.clockByTrack[track]??='標準';state.loadByTrack[track]??={'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]};state.gripByTrack[track]??=[false,false,false]}
 Object.defineProperties(state,{clock:{get(){return this.clockByTrack[this.track]},set(value){this.clockByTrack[this.track]=value}},load:{get(){return this.loadByTrack[this.track]}},grip:{get(){return this.gripByTrack[this.track]}}});
 // 時計・負荷・直線グリップは端末のブラウザだけに保存する（競馬場別）。
 const SETTINGS_KEY='keiba-track-settings-v1';
 try{
  const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null');
  if(saved&&typeof saved==='object'){
-  for(const track of ['東京','京都']){
+  for(const track of ALL_JRA_TRACKS){
    if(levels.includes(saved.clockByTrack?.[track]))state.clockByTrack[track]=saved.clockByTrack[track];
    for(const segment of ['道中','4角','直線']){
     const values=saved.loadByTrack?.[track]?.[segment];
@@ -202,7 +204,7 @@ $('clockMemoButton').addEventListener('click',()=>{updateClockMemo();$('clockMem
 $('clockMemoClose').addEventListener('click',()=>$('clockMemoDialog').close());
 $('clockMemoText').addEventListener('input',e=>{try{localStorage.setItem(clockMemoKey(state.track,activeClockMemoDate()),e.target.value)}catch(err){}$('clockMemoButton').classList.toggle('hasMemo',!!e.target.value.trim());document.dispatchEvent(new CustomEvent('yubaba-analysis-changed',{detail:{track:state.track}}))});
 updateClockMemo();
-const memoByTrack={'東京':'','京都':''};
+const memoByTrack=Object.fromEntries(ALL_JRA_TRACKS.map(track=>[track,'']));
 for(const track of Object.keys(memoByTrack)){
  try{memoByTrack[track]=localStorage.getItem('keiba-memo-'+track)||''}catch(e){}
 }
@@ -240,7 +242,7 @@ function renderDate(){
  $('infoDate').textContent=`${d.getMonth()+1}/${d.getDate()} ${weekdays[d.getDay()]}`;
 }
 function renderCourseMeta(){
- const m=courseMeta[state.track];
+ const m=courseMeta[state.track]||{courseDirection:['東京','新潟','中京'].includes(state.track)?'左':'右'};
  $('direction').textContent=m.courseDirection||'—';
  $('meetingDay').textContent=m.meetingNumber!=null&&m.dayNumber!=null?`${m.meetingNumber}回${m.dayNumber}日目`:'未取得';
  $('weather').textContent=m.weather||'—';
@@ -444,7 +446,7 @@ function showLiveWind(){
   drift.style.animationDelay=(-i*0.32)+'s';
  });
 }
-const WIND_COORDS={'東京':[35.6628,139.4855],'京都':[34.9068,135.7246]};
+const WIND_COORDS={'札幌':[43.076,141.375],'函館':[41.824,140.765],'福島':[37.772,140.48],'新潟':[37.949,139.186],'東京':[35.6628,139.4855],'中山':[35.726,139.963],'中京':[35.069,136.983],'京都':[34.9068,135.7246],'阪神':[34.781,135.364],'小倉':[33.843,130.877]};
 function parseWindRecord(record){
  if(!record)return null;
  const speed=Number(record.speed),direction=Number(record.direction);
@@ -480,6 +482,13 @@ async function updateWind(){
 document.getElementById('tabs').addEventListener('click',showLiveWind);
 updateWind();
 
+function setActiveJraTracks(tracks){
+ const selected=ALL_JRA_TRACKS.filter(track=>tracks.includes(track));
+ if(!selected.length)return;
+ const tabs=document.getElementById('tabs');
+ tabs.replaceChildren(...selected.map(track=>{const b=document.createElement('button');b.className='tab'+(state.track===track?' active':'');b.dataset.track=track;b.textContent=track;return b}));
+ if(!selected.includes(state.track))tabs.querySelector('.tab')?.click();
+}
 const JRA_URL='https://keiba-track-data.sleeping4439.workers.dev/latest';
 let jraTracks={};
 const chosenJraDates={};
@@ -504,7 +513,7 @@ function renderJRA(){
  $('jraMoistureCorner').textContent='4角 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
  // A condition bulletin is not automatically valid for earlier measurement dates.
  $('jraCondition').textContent=valid&&(!selected||date>=x.conditionObservedAt)?x.condition:'—';
- const meta=courseMeta[state.track];
+ const meta=courseMeta[state.track]||(courseMeta[state.track]={courseDirection:['東京','新潟','中京'].includes(state.track)?'左':'右'});
  meta.meetingNumber=valid&&Number.isInteger(x.meetingNumber)?x.meetingNumber:null;
  meta.dayNumber=valid&&Number.isInteger(x.meetingDay)?x.meetingDay:null;
  meta.weather=valid&&typeof x.weather==='string'?x.weather:'—';
@@ -542,10 +551,12 @@ async function refreshJRA(){
   if(!res.ok)throw Error('unavailable');
   const body=await res.json();
   jraTracks=body.schemaVersion===1&&body.tracks?body.tracks:{};
+  const active=Array.isArray(body.activeTracks)?body.activeTracks:[];
+  if(active.length)setActiveJraTracks(active);
  }catch{jraTracks={};}
  renderJRA();
  // Preserve the JRA measurement date, not the day the browser was opened.
- for(const track of ['東京','京都']){
+ for(const track of ALL_JRA_TRACKS){
   const x=jraTracks[track];
   if(!x)continue;
   const rows=Array.isArray(x.history)?x.history:[];
@@ -589,7 +600,7 @@ status.querySelector('#historySyncRetry').addEventListener('click',()=>flush());
 status.querySelector('#historySyncClose').addEventListener('click',()=>{status.style.display='none'});
 const jstDate=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const pending=new Map();
-try{const items=JSON.parse(localStorage.getItem(queueKey)||'[]');if(Array.isArray(items))for(const item of items){if(item&&/^20\d{2}-\d{2}-\d{2}$/.test(item.date)&&['東京','京都'].includes(item.track))pending.set(item.date+':'+item.track,item)}}catch(e){}
+try{const items=JSON.parse(localStorage.getItem(queueKey)||'[]');if(Array.isArray(items))for(const item of items){if(item&&/^20\d{2}-\d{2}-\d{2}$/.test(item.date)&&ALL_JRA_TRACKS.includes(item.track))pending.set(item.date+':'+item.track,item)}}catch(e){}
 const persist=()=>{try{localStorage.setItem(queueKey,JSON.stringify([...pending.values()]))}catch(e){}};
 let busy=false,retryTimer;
 async function flush(){
@@ -612,7 +623,7 @@ async function flush(){
  }catch(e){report('履歴未同期：通信エラー。再送信できます')}finally{busy=false}
 }
 function recordChange(track){
- if(!['東京','京都'].includes(track))return;
+ if(!ALL_JRA_TRACKS.includes(track))return;
  const date=jstDate(),key=date+':'+track;
  let settings;
  try{settings=JSON.parse(localStorage.getItem('keiba-track-settings-v1')||'null')}catch(e){return}
@@ -627,7 +638,7 @@ function recordChange(track){
 document.addEventListener('yubaba-analysis-changed',e=>recordChange(e.detail?.track));
 document.addEventListener('yubaba-jra-data',e=>{
  const {date,track,data}=e.detail||{};
- if(!/^20\d{2}-\d{2}-\d{2}$/.test(date||'')||!['東京','京都'].includes(track)||!data)return;
+ if(!/^20\d{2}-\d{2}-\d{2}$/.test(date||'')||!ALL_JRA_TRACKS.includes(track)||!data)return;
  const key=date+':'+track,old=pending.get(key)||{date,track};
  pending.set(key,{...old,jra_data:{...(old.jra_data||{}),...data}});
  persist();flush();
