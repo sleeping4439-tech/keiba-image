@@ -2,6 +2,8 @@ name: Validate lap parser
 on:
   push:
     paths:
+      - 'cloudflare/worker.js'
+      - 'scripts/track-data.test.mjs'
       - 'scripts/parse-jra-laps.mjs'
       - 'scripts/parse-jra-laps.test.mjs'
       - 'scripts/build-laps.mjs'

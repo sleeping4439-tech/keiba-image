@@ -1,4 +1,5 @@
-const LOCATIONS = {東京:{lat:35.662,lon:139.485},京都:{lat:34.907,lon:135.725}};
+const LOCATIONS = {札幌:{lat:43.076,lon:141.375},函館:{lat:41.824,lon:140.765},福島:{lat:37.772,lon:140.48},新潟:{lat:37.949,lon:139.186},東京:{lat:35.662,lon:139.485},中山:{lat:35.726,lon:139.963},中京:{lat:35.069,lon:136.983},京都:{lat:34.907,lon:135.725},阪神:{lat:34.781,lon:135.364},小倉:{lat:33.843,lon:130.877}};
+const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 const JRA_PAGES = ['index.html','index2.html','index3.html','index4.html'];
 const BASE = 'https://www.jra.go.jp/keiba/baba/';
 const HEADERS = {'content-type':'application/json; charset=utf-8','access-control-allow-origin':'https://sleeping4439-tech.github.io','cache-control':'public, max-age=600'};
@@ -29,9 +30,9 @@ async function weather(name){
 
 function extractCondition(html,title,url){
  const course=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
- if(!['東京','京都'].includes(course))return null;
+ if(!ALL_JRA_TRACKS.includes(course))return null;
  const body=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
- const meeting=body.match(/第\d+回\s*(?:東京|京都)競馬\s*第\d+日(?:前日)?\s*[（(]\s*(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+ const meeting=body.match(/第\d+回\s*(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)競馬\s*第\d+日(?:前日)?\s*[（(]\s*(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日/);
  const heading=body.match(/馬場状態\s*[（(]\s*(\d{1,2})月\s*(\d{1,2})日/);
  if(!meeting||!heading)return null;
  const afterHeading=body.slice(body.indexOf(heading[0])+heading[0].length,body.indexOf(heading[0])+heading[0].length+220);
@@ -100,73 +101,52 @@ function measuredDate(raw,year){
  if(d.getUTCFullYear()!==year||d.getUTCMonth()!==month-1||d.getUTCDate()!==day)return null;
  return year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0')+'T'+String(hour).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00+09:00';
 }
+function measurementRegion(html,course){
+ if(Array.isArray(html))return html.map(source=>measurementRegion(source,course)).join('');
+ if(!html||!ALL_JRA_TRACKS.includes(course))return '';
+ const sections=[...html.matchAll(/<div\b([^>]*\bid=["']rc[A-Z]["'][^>]*)>([\s\S]*?)(?=<div\b[^>]*\bid=["']rc[A-Z]["']|$)/gi)];
+ return sections.find(m=>(m[1].match(/\btitle=["']([^"']+)["']/i)||[])[1]===course)?.[2]||'';
+}
 function extractSourceMeasurements(html,course,year,type,conditionDate){
- const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
- if(!id)return null;
- const region=(html.match(new RegExp('<div\\b[^>]*\\bid=["\\x27]'+id+'["\\x27][^>]*>([\\s\\S]*?)(?=<div\\b[^>]*\\bid=["\\x27]rc[A-Z]["\\x27]|$)','i'))||[])[1]||'';
- const units=[...region.matchAll(/<div\s+class=["']unit["']\s*>([\s\S]*?)(?=<div\s+class=["']unit["']|$)/gi)];
- const entries=[];
- for(const unit of units){
-  const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\/div>/i)||[])[1]||'';
-  const time=measuredDate(raw,year);
-  if(!time||time.slice(0,10)>conditionDate)continue;
-  if(type==='cushion'){
-   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\/div>/i)||[])[1];
-   if(v===undefined)continue;
-   const cushion=Number(v);
-   if(cushion>=0&&cushion<=30)entries.push({time,cushion});
-  }else{
-   const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\/div>/i)||[])[1]||'';
-   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
-   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
-   if(g===undefined||c===undefined)continue;
-   const finish=Number(g),corner=Number(c);
-   if(finish<=100&&corner<=100)entries.push({time,finish,corner});
-  }
- }
- entries.sort((a,b)=>b.time.localeCompare(a.time));
- return entries[0]||null;
+ return extractRecentMeasurements(html,course,year,type,conditionDate)[0]||null;
 }
 function extractRecentMeasurements(html,course,year,type,conditionDate){
- const id=course==='東京'?'rcA':course==='京都'?'rcB':null;
- if(!id||!html)return [];
- const region=(html.match(new RegExp('<div\\b[^>]*\\bid=["\\x27]'+id+'["\\x27][^>]*>([\\s\\S]*?)(?=<div\\b[^>]*\\bid=["\\x27]rc[A-Z]["\\x27]|$)','i'))||[])[1]||'';
+ const region=measurementRegion(html,course);
  const units=[...region.matchAll(/<div\s+class=["']unit["']\s*>([\s\S]*?)(?=<div\s+class=["']unit["']|$)/gi)];
  const entries=[];
  for(const unit of units){
   const raw=(unit[1].match(/<div\s+class=["']time["']\s*>([^<]+)<\/div>/i)||[])[1]||'';
-  const time=measuredDate(raw,year);
+  let time=measuredDate(raw,year);
+  if(time&&time.slice(0,10)>conditionDate&&conditionDate.slice(5,7)==='01'&&time.slice(5,7)==='12')time=measuredDate(raw,year-1);
   if(!time||time.slice(0,10)>conditionDate)continue;
   if(type==='cushion'){
-   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>(\d{1,2}(?:\.\d+)?)<\/div>/i)||[])[1];
-   if(v===undefined)continue;
-   const cushion=Number(v);
-   if(cushion>=0&&cushion<=30)entries.push({time,cushion});
+   const v=(unit[1].match(/<div\s+class=["']cushion["']\s*>\s*(\d{1,2}(?:\.\d+)?)\s*<\/div>/i)||[])[1];
+   if(v!==undefined&&Number(v)<=30)entries.push({time,cushion:Number(v)});
   }else{
    const turf=(unit[1].match(/<div\s+class=["']turf["']\s*>([\s\S]*?)<\/div>/i)||[])[1]||'';
-   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
-   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>(\d{1,2}(?:\.\d+)?)<\/span>/i)||[])[1];
-   if(g===undefined||c===undefined)continue;
-   const finish=Number(g),corner=Number(c);
-   if(finish<=100&&corner<=100)entries.push({time,finish,corner});
+   const g=(turf.match(/<span\s+class=["']mg["'][^>]*>\s*(\d{1,2}(?:\.\d+)?)\s*<\/span>/i)||[])[1];
+   const c=(turf.match(/<span\s+class=["']m4c["'][^>]*>\s*(\d{1,2}(?:\.\d+)?)\s*<\/span>/i)||[])[1];
+   if(g!==undefined&&c!==undefined&&Number(g)<=100&&Number(c)<=100)entries.push({time,finish:Number(g),corner:Number(c)});
   }
  }
- entries.sort((a,b)=>b.time.localeCompare(a.time));
- return entries;
+ return entries.sort((a,b)=>b.time.localeCompare(a.time));
 }
 async function jraVerified(){
  const pages=await jraDiagnostic();
- const [cushionResult,moistResult]=await Promise.allSettled(['_data_cushion.html','_data_moist.html'].map(async file=>{
-  const res=await fetch(freshJraUrl(BASE+file));
-  if(!res.ok)throw Error(file+' HTTP '+res.status);
-  return new TextDecoder('shift_jis').decode(await res.arrayBuffer());
- }));
- const cushionHTML=cushionResult.status==='fulfilled'?cushionResult.value:null;
- const moistHTML=moistResult.status==='fulfilled'?moistResult.value:null;
+ const origins=[BASE,'https://jra.jp/keiba/baba/'];
+ const loadMeasurements=async file=>{
+  const results=await Promise.allSettled(origins.map(async origin=>{
+   const res=await fetch(freshJraUrl(origin+file),{headers:{'Cache-Control':'no-cache','Pragma':'no-cache'},signal:AbortSignal.timeout(15000)});
+   if(!res.ok)throw Error(file+' HTTP '+res.status);
+   return new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+  }));
+  return results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+ };
+ const [cushionHTML,moistHTML]=await Promise.all(['_data_cushion.html','_data_moist.html'].map(loadMeasurements));
  const tracks={};
  const parseErrors=[];
  for(const page of pages){
-  if(!['東京','京都'].includes(page.course)||page.status!==200)continue;
+  if(!ALL_JRA_TRACKS.includes(page.course)||page.status!==200)continue;
   try{
    const response=await fetch(freshJraUrl(page.url));
    if(!response.ok)continue;
@@ -174,7 +154,7 @@ async function jraVerified(){
    const x=extractCondition(html,page.title,page.url);
    if(!x){parseErrors.push({course:page.course,stage:'extractCondition',title:page.title});continue;}
    const year=Number(x.observedAt.slice(0,4));
-   const meetingDate=(textOnly(html).match(/第\d+回\s*(?:東京|京都)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
+   const meetingDate=(textOnly(html).match(/第\d+回\s*(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
    const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
    const c=cushionHTML?extractSourceMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit):null;
    const m=moistHTML?extractSourceMeasurements(moistHTML,x.course,year,'moist',measurementLimit):null;
@@ -184,7 +164,7 @@ async function jraVerified(){
     // Keep only this race weekend's Friday, Saturday and Sunday, with both official measurements present.
     const meetingUTC=new Date(measurementLimit+'T00:00:00Z');
     const weekday=meetingUTC.getUTCDay();
-    const friday=new Date(meetingUTC.getTime()-((weekday+2)%7)*86400000).toISOString().slice(0,10);
+    const friday=new Date(meetingUTC.getTime()-(weekday===1?3:(weekday+2)%7)*86400000).toISOString().slice(0,10);
     const cushionEntries=extractRecentMeasurements(cushionHTML,x.course,year,'cushion',measurementLimit);
     const moistEntries=extractRecentMeasurements(moistHTML,x.course,year,'moist',measurementLimit);
     const byDate=new Map();
@@ -206,6 +186,7 @@ async function jraVerified(){
     x.moistureMeasuredAt=null;
    }
    x.conditionObservedAt=x.observedAt;
+   for(const row of x.history){if(row.date===x.conditionObservedAt)row.condition=x.condition;}
    // The UI date refers to the latest fully verified turf measurements, not the condition bulletin.
    const cushionDay=x.cushionMeasuredAt?.slice(0,10);
    const moistureDay=x.moistureMeasuredAt?.slice(0,10);
@@ -214,14 +195,14 @@ async function jraVerified(){
    if(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt)tracks[x.course]=x;
   }catch(error){parseErrors.push({course:page.course,stage:'parse',error:String(error)});}
  }
- Object.defineProperty(tracks,'_debug',{value:{pages,parseErrors,cushionLoaded:!!cushionHTML,moistLoaded:!!moistHTML},enumerable:false});
+ Object.defineProperty(tracks,'_debug',{value:{pages,parseErrors,cushionLoaded:cushionHTML.length>0,moistLoaded:moistHTML.length>0},enumerable:false});
  return tracks;
 }
 
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return new Response(JSON.stringify({ok:true,version:19,build:'turf-measurement-date-fix-20261010',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
+ if(path==='/health')return new Response(JSON.stringify({ok:true,version:24,build:'all-jra-tracks-title-measurements-20261012',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/freshness-diagnostics'){
@@ -244,7 +225,7 @@ export default {async fetch(request){
   const results=[];
   const sourcePages=await jraDiagnostic();
   for(const p of sourcePages){
-   if(!['東京','京都'].includes(p.course)||p.status!==200){results.push({url:p.url,status:p.status??null,course:p.course??null,error:p.error??'ページを解析対象として認識できませんでした'});continue;}
+   if(!ALL_JRA_TRACKS.includes(p.course)||p.status!==200){results.push({url:p.url,status:p.status??null,course:p.course??null,error:p.error??'ページを解析対象として認識できませんでした'});continue;}
    try{
     const res=await fetch(freshJraUrl(p.url));
     if(!res.ok){results.push({course:p.course,url:p.url,status:res.status,error:'本文の取得に失敗'});continue;}
@@ -261,7 +242,7 @@ export default {async fetch(request){
  if(path==='/measurement-diagnostics'){
   const results=[];
   for(const p of await jraDiagnostic()){
-   if(!['東京','京都'].includes(p.course)||p.status!==200)continue;
+   if(!ALL_JRA_TRACKS.includes(p.course)||p.status!==200)continue;
    try{
     const response=await fetch(p.url);
     const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
@@ -320,7 +301,7 @@ export default {async fetch(request){
     const res=await fetch(url);
     const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
     const sections=[];
-    for(const course of ['東京','京都']){
+    for(const course of ALL_JRA_TRACKS){
      const candidates=[...html.matchAll(new RegExp('<(?:div|section|li)\\b[^>]*\\bid=["\\x27]([^"\\x27]+)["\\x27][^>]*>[\\s\\S]{0,1800}','gi'))].filter(m=>m[0].includes(course)).slice(0,3);
      sections.push({course,samples:candidates.map(m=>({id:m[1],html:m[0].slice(0,1400)}))});
     }
@@ -364,9 +345,9 @@ export default {async fetch(request){
     const valid=parsed.filter(c=>/^\s*(?:[1-9]|1[0-2])\s*(?:レース|R)\s*$/.test(c[0]||'')&&c.length>=3);
     if(!valid.length)continue;
     const before=stripped.slice(Math.max(0,t.index-3000),t.index);
-    const match=[...before.matchAll(/(?:東京|京都)競馬場|\d+回(?:東京|京都)\d+日/g)].pop()?.[0]||'';
+    const match=[...before.matchAll(/(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)競馬場|\d+回(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)\d+日/g)].pop()?.[0]||'';
     diagnostics.push({heading:match,rows:valid.length});
-    const track=match.includes('東京')?'東京':match.includes('京都')?'京都':null;
+    const track=ALL_JRA_TRACKS.find(name=>match.includes(name))||null;
     for(const c of valid){
      const number=Number(c[0].match(/\d+/)[0]);
      const description=c.slice(1,-1).join(' ').replace(/\s+/g,' ').trim();
@@ -374,11 +355,6 @@ export default {async fetch(request){
      const distance=description.match(/([1-9],?\d{3})\s*[（(]\s*(芝|ダ)/);
      races.push({track,number,name:description,time,surface:distance?.[2]==='芝'?'芝':distance?.[2]==='ダ'?'ダート':'',distance:distance?Number(distance[1].replace(',','')):null});
     }
-   }
-   // The official calendar orders Tokyo before Kyoto on the target weekend.
-   if(races.length&&!races.some(x=>x.track==='東京')&&!races.some(x=>x.track==='京都')){
-    let group=-1,prev=12;
-    for(const race of races){if(race.number<=prev){group++}race.track=group===0?'東京':group===1?'京都':null;prev=race.number}
    }
    return respond({date,sourceUrl,source:'JRA競馬番組（予定）',races,available:races.length>0,notice:'正式な出馬表ではありません。変更の可能性があります。',diagnostics:{tables:tables.length,candidates:diagnostics}});
   }catch(error){return respond({date,sourceUrl,races:[],available:false,diagnostics:{stage:'fetch-or-parse',error:String(error)}})}
@@ -396,7 +372,7 @@ export default {async fetch(request){
     const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
     const title=textOnly((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'');
     track=(title.match(/馬場情報[（(]([^）)]+?)競馬場[）)]/)||[])[1];
-    if(!['東京','京都'].includes(track))return;
+    if(!ALL_JRA_TRACKS.includes(track))return;
     const section=html.match(/週間情報[\s\S]{0,2000}?(<table\b[\s\S]*?<\/table>)/i);
     const table=section?.[1]||'';
     const rows=[...table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m=>[...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(c=>textOnly(c[1].replace(/<img\b[^>]*alt=["']([^"']*)["'][^>]*>/gi,'$1'))));
@@ -418,10 +394,11 @@ export default {async fetch(request){
  }
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
- const complete=['東京','京都'].every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
+ const activeTracks=[...new Set(tracks._debug.pages.filter(p=>p.status===200&&ALL_JRA_TRACKS.includes(p.course)).map(p=>p.course))];
+ const complete=activeTracks.length>0&&activeTracks.every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
  const status=complete?'complete':Object.keys(tracks).length?'partial':'unavailable';
  const debug=url.searchParams.has('debug')?tracks._debug:undefined;
- return new Response(JSON.stringify({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,status,...(debug?{debug}:{}),reason:complete?'東京・京都の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
+ return new Response(JSON.stringify({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,activeTracks,status,...(debug?{debug}:{}),reason:complete?'開催場の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
 }
  return respond({ok:false,error:'not_found'},404);
 }};

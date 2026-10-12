@@ -8,7 +8,8 @@ if(data.schemaVersion!==1||!data.tracks||typeof data.tracks!=='object')throw Err
 const verified={};
 const dateParts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));
 const todayJST=dateParts.year+'-'+dateParts.month+'-'+dateParts.day;
-for(const name of ['東京','京都']){
+const slugs={札幌:'sapporo',函館:'hakodate',福島:'fukushima',新潟:'niigata',東京:'tokyo',中山:'nakayama',中京:'chukyo',京都:'kyoto',阪神:'hanshin',小倉:'kokura'};
+for(const name of Object.keys(slugs)){
  const x=data.tracks[name];
  if(!x||x.course!==name||!/^https:\/\/www\.jra\.go\.jp\/keiba\/baba\//.test(x.sourceUrl||''))continue;
  if(!/^20\d\d-\d\d-\d\d$/.test(x.observedAt||'')||x.observedAt>todayJST)continue;
@@ -34,7 +35,7 @@ const updatedAt=new Date().toISOString();
 for(const [name,x] of Object.entries(updates)){
  const dir='data/history/'+x.observedAt;
  await mkdir(dir,{recursive:true});
- await writeFile(dir+'/'+(name==='東京'?'tokyo':'kyoto')+'.json',JSON.stringify({track:name,...x,archivedAt:updatedAt},null,2)+'\n');
+ await writeFile(dir+'/'+slugs[name]+'.json',JSON.stringify({track:name,...x,archivedAt:updatedAt},null,2)+'\n');
 }
-await writeFile('data/latest.json',JSON.stringify({schemaVersion:1,updatedAt,tracks:{...prev.tracks,...updates}},null,2)+'\n');
+await writeFile('data/latest.json',JSON.stringify({schemaVersion:1,updatedAt,activeTracks:data.activeTracks||Object.keys(verified),tracks:{...prev.tracks,...updates}},null,2)+'\n');
 console.log('Archived:',Object.keys(updates).join(', '));

@@ -1,20 +1,23 @@
-# JRA 馬場情報連携（開発ブランチ）
+# JRA 馬場情報連携
 
-## 検証済み
-- 2026-10-09: Cloudflare Workerで東京・京都のJRAページ取得（HTTP 200）を確認。
-- `/latest`: 東京・京都の芝馬場状態「良」、公表日2026-10-09をユーザー提供の実行結果で確認。
-- 公式ページのURLは開催状況で入れ替わる可能性があるため、タイトルの競馬場名で判定する。
-- クッション値・含水率は未検証。JRAの「12/10/8/7」は参考スケールであり実測値として扱わない。
+Worker v24 は全10場の馬場状態・測定値・週間情報・風の取得に対応する。
+開催場はJRA馬場情報ページの競馬場名から検出し、`/latest` の `activeTracks` に返す。
+クッション値・含水率は2つの公式ドメインから取得し、各セクションの title を競馬場名で照合したうえで測定日時の新しい値を選ぶ。
+測定値の前後の空白を許容し、月曜開催では直前金曜からの履歴を含める。
 
-## 次に必要な操作（Workerデプロイ）
-1. `cloudflare/worker.js` の開発ブランチ最新版をCloudflare既存Workerへコピーしてデプロイする。
-2. `https://keiba-track-data.sleeping4439.workers.dev/measurement-diagnostics` を開き、JSONを開発担当に渡す。
-3. `https://keiba-track-data.sleeping4439.workers.dev/weather` を開き、東京・京都の風速・風向のJSONを渡す。
-4. `https://keiba-track-data.sleeping4439.workers.dev/latest` の東京・京都の状態が継続取得できることを確認する。
+馬場状態は `conditionObservedAt` の公表日に対応する。以前の日付へ現在の状態を推測してコピーしない。
+履歴画面は保存済みの分析を保ったまま選択日の公式データを読み直す。
+保存スクリプトは全10場を対象とし、定期取得は祝日開催にも対応するため毎日実行する。
 
-## 注意
-- `main` はまだ変更していない。WorkerとGitHub Pagesの本番公開は別操作。
-- `/weather` はOpen-Meteoの近傍格子点による推定風。場内実測ではない。
-- 既存アプリの手動設定・コース図・標高図を残し、公式データは独立した情報欄に表示する。
-- `scripts/archive-data.mjs` は未検証値を除外して保存する。定期実行はワークフローをdefault branchへマージ後に開始される。
-- JRA公式アーカイブ: https://www.jra.go.jp/keiba/baba/archive/2026.html
+## 検証
+
+`node --test scripts/*.test.mjs`：全10場の測定セクション照合、欠落場、開催場切り替え、空白付き値、公式ドメイン間の新旧比較を含む。
+HTML内のスクリプトを `node --check` で検証。
+
+## 本番反映
+
+GitHub Pages と Cloudflare Worker の公開は別操作。
+`cloudflare/worker.js` を既存の `keiba-track-data` Worker に反映後、`/health` の version 24 と `/latest?debug=1` を確認する。
+Cloudflareへの公開権限はこの作業環境では未取得。GitHubへ保存しただけではWorker本番は更新されない。
+
+風はOpen-Meteoの推定値。追加場の坂・起伏図とコース使用日数は、公式情報の検証が完了するまで未表示。
