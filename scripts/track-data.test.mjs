@@ -32,7 +32,7 @@ test('all-track endpoint reports discovered active tracks',async()=>{
   const path=new URL(url).pathname.split('/').pop();
   const titles={'index.html':'新潟','index2.html':'中山','index3.html':'阪神'};
   if(titles[path])return new Response(`<title>馬場情報（${titles[path]}競馬場）</title>第1回 ${titles[path]}競馬 第1日（2026年10月12日） 馬場状態（10月12日（月曜）7時現在） 天候： 晴 芝 良 ダート 良`);
-  if(path==='index4.html')return new Response('',{status:404});
+  if(path==='index4.html')return new Response('<title>馬場情報（札幌競馬場）</title>第1回 札幌競馬 第1日（2026年9月6日） 馬場状態（9月6日（日曜）7時現在） 天候： 晴 芝 良 ダート 良');
   const body=Object.values(titles).map((name,i)=>`<div id="rc${String.fromCharCode(65+i)}" title="${name}"><div class="unit"><div class="time">10月12日（月曜）7時00分</div><div class="cushion"> 9.6 </div><div class="turf"><span class="mg">12.1</span><span class="m4c">13.2</span></div></div></div>`).join('');
   return new Response(body);
  };

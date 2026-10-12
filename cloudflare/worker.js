@@ -60,7 +60,7 @@ function extractCondition(html,title,url){
  const moistureFinish=goal!==undefined?Number(goal):null;
  const moistureCorner=corner!==undefined?Number(corner):null;
  const validMoisture=moistureFinish!==null&&moistureCorner!==null&&moistureFinish>=0&&moistureFinish<=100&&moistureCorner>=0&&moistureCorner<=100;
- return {course,condition:m[1],observedAt,sourceUrl:url,cushion:null,meetingNumber:meetingNumberMatch?Number(meetingNumberMatch[1]):null,meetingDay:meetingDayMatch?Number(meetingDayMatch[1]):null,weather:weatherMatch?weatherMatch[1]:null,rail:railMatch?railMatch[1]:null,railDay:null,
+ return {course,condition:m[1],meetingDate:meetingDate.toISOString().slice(0,10),observedAt,sourceUrl:url,cushion:null,meetingNumber:meetingNumberMatch?Number(meetingNumberMatch[1]):null,meetingDay:meetingDayMatch?Number(meetingDayMatch[1]):null,weather:weatherMatch?weatherMatch[1]:null,rail:railMatch?railMatch[1]:null,railDay:null,
   moistureFinish:validMoisture?moistureFinish:null,moistureCorner:validMoisture?moistureCorner:null,
   moistureMeasuredAt:null,
   note:validMoisture?'芝含水率はJRA芝専用表から取得。測定時刻は未確認':'馬場状態のみ取得。含水率・クッション値の測定時刻は未確認'};
@@ -195,6 +195,9 @@ async function jraVerified(){
    if(!tracks[x.course]||tracks[x.course].observedAt<x.observedAt)tracks[x.course]=x;
   }catch(error){parseErrors.push({course:page.course,stage:'parse',error:String(error)});}
  }
+ // JRA retains pages from finished meetings. Only the newest race weekend is active.
+ const newestMeeting=Object.values(tracks).map(x=>x.meetingDate).sort().at(-1);
+ if(newestMeeting){const threshold=new Date(newestMeeting+'T00:00:00Z').getTime()-3*86400000;for(const [name,x] of Object.entries(tracks)){if(new Date(x.meetingDate+'T00:00:00Z').getTime()<threshold)delete tracks[name];}}
  Object.defineProperty(tracks,'_debug',{value:{pages,parseErrors,cushionLoaded:cushionHTML.length>0,moistLoaded:moistHTML.length>0},enumerable:false});
  return tracks;
 }
@@ -394,7 +397,7 @@ export default {async fetch(request){
  }
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
- const activeTracks=[...new Set(tracks._debug.pages.filter(p=>p.status===200&&ALL_JRA_TRACKS.includes(p.course)).map(p=>p.course))];
+ const activeTracks=ALL_JRA_TRACKS.filter(name=>tracks[name]);
  const complete=activeTracks.length>0&&activeTracks.every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
  const status=complete?'complete':Object.keys(tracks).length?'partial':'unavailable';
  const debug=url.searchParams.has('debug')?tracks._debug:undefined;
