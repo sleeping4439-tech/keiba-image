@@ -7,12 +7,16 @@ const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 const VERIFIED_ENTRY_CODES={'2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
 function parseJraEntries(html){
  const entries=[];
- for(const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
-  const cells=[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1]).replace(/&nbsp;|&#160;/g,' ').trim());
-  const name=cells.find(v=>/^[ァ-ヶー・]{3,20}$/.test(v));
-  if(!name||entries.some(x=>x.name===name))continue;
-  const no=cells.map(v=>v.match(/^(?:[1-9]|1[0-8])$/)).find(Boolean);
-  if(no)entries.push({number:Number(no[0]),name});
+ const rows=[...html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+ for(const row of rows){
+  const cells=[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+   .map(m=>textOnly(m[1]).replace(/&nbsp;|&#160;|&#12288;/g,' ').trim());
+  const horseCell=cells.find(v=>/^[ァ-ヶー・\s]{3,24}$/.test(v)&&/[ァ-ヶ]/.test(v));
+  if(!horseCell)continue;
+  const name=horseCell.replace(/\s+/g,'');
+  if(entries.some(e=>e.name===name))continue;
+  const candidates=cells.map(v=>v.match(/^([1-9]|1[0-8])$/)).filter(Boolean);
+  if(candidates.length)entries.push({number:Number(candidates[candidates.length-1][1]),name});
  }
  return entries;
 }
@@ -361,7 +365,7 @@ export default {async fetch(request){
    if(!response.ok)return respond({available:false,date,track,number,error:'JRA_HTTP_'+response.status,sourceUrl});
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const entries=parseJraEntries(html);
-   return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed'});
+   return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed',diagnostics:{htmlLength:html.length,rowCount:[...html.matchAll(/<tr\\b/gi)].length,pageTitle:textOnly((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)||[])[1]||'').slice(0,120)}});
   }catch(e){return respond({available:false,date,track,number,error:String(e),sourceUrl})}
  }
  if(path==='/races'){
