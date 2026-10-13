@@ -385,9 +385,12 @@ export default {async fetch(request){
     // Venue fallback for the published October 17-18 three-track program.
     // The calendar table order is Tokyo, Kyoto, Niigata on these dates.
     // Keep this date-scoped; never assign venues by table order on other dates.
-    const octoberWeekend=year==='2026'&&month==='10'&&(day==='17'||day==='18');
+    const octoberWeekend=year==='2026'&&month==='10'&&['10','11','12','17','18'].includes(day);
     const tableNumber=diagnostics.length;
-    const orderedVenue=octoberWeekend?['東京','京都','新潟'][tableNumber]||null:null;
+    // Oct 10-12: Tokyo and Kyoto. Oct 17-18: Tokyo, Kyoto and Niigata.
+    const orderedVenue=octoberWeekend
+      ? (['10','11','12'].includes(day)?['東京','京都']:['東京','京都','新潟'])[tableNumber]||null
+      : null;
     const cardText=valid.map(c=>c.join(' ')).join(' ');
     const namedVenue=octoberWeekend
       ? (/富士ステークス|アイビーステークス|東京ハイジャンプ/.test(cardText)?'東京'
