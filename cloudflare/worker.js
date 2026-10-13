@@ -369,7 +369,7 @@ export default {async fetch(request){
         : /トルマリンステークス|もみじステークス|秋華賞/.test(cardText)?'京都'
         : /北陸ステークス|妙高特別|信越ステークス/.test(cardText)?'新潟':orderedVenue)
       : null;
-    const track=ALL_JRA_TRACKS.includes(match)?match:namedVenue;
+    const track=namedVenue||(ALL_JRA_TRACKS.includes(match)?match:null);
     diagnostics.push({heading:match,detectedTrack:track,rows:valid.length});
     for(const c of valid){
      const number=Number(c[0].match(/\d+/)[0]);
