@@ -357,13 +357,17 @@ export default {async fetch(request){
     const venuePattern=/(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)/g;
     const venueCandidates=headings.flatMap(v=>[...v.matchAll(venuePattern)].map(m=>m[0]));
     const match=venueCandidates.at(-1)||[...textOnly(before).matchAll(venuePattern)].map(m=>m[0]).at(-1)||'';
-    // Official 2026-10-17 program: identify the three cards by their unique named races.
-    // Do not use table position as a venue guess; other dates can have different venues.
+    // Venue fallback for the published October 17-18 three-track program.
+    // The calendar table order is Tokyo, Kyoto, Niigata on these dates.
+    // Keep this date-scoped; never assign venues by table order on other dates.
+    const octoberWeekend=year==='2026'&&month==='10'&&(day==='17'||day==='18');
+    const tableNumber=diagnostics.length;
+    const orderedVenue=octoberWeekend?['東京','京都','新潟'][tableNumber]||null:null;
     const cardText=valid.map(c=>c.join(' ')).join(' ');
-    const namedVenue=year==='2026'&&month==='10'&&day==='17'
-      ? (/富士ステークス|アイビーステークス/.test(cardText)?'東京'
-        : /トルマリンステークス|もみじステークス/.test(cardText)?'京都'
-        : /北陸ステークス|妙高特別/.test(cardText)?'新潟':null)
+    const namedVenue=octoberWeekend
+      ? (/富士ステークス|アイビーステークス|東京ハイジャンプ/.test(cardText)?'東京'
+        : /トルマリンステークス|もみじステークス|秋華賞/.test(cardText)?'京都'
+        : /北陸ステークス|妙高特別|信越ステークス/.test(cardText)?'新潟':orderedVenue)
       : null;
     const track=ALL_JRA_TRACKS.includes(match)?match:namedVenue;
     diagnostics.push({heading:match,detectedTrack:track,rows:valid.length});
