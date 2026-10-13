@@ -358,7 +358,15 @@ export default {async fetch(request){
     const venueCandidates=headings.flatMap(v=>[...v.matchAll(venuePattern)].map(m=>m[0]));
     const match=venueCandidates.at(-1)||[...textOnly(before).matchAll(venuePattern)].map(m=>m[0]).at(-1)||'';
     diagnostics.push({heading:match,rows:valid.length});
-    const track=ALL_JRA_TRACKS.includes(match)?match:null;
+    // Official 2026-10-17 program: identify the three cards by their unique named races.
+    // Do not use table position as a venue guess; other dates can have different venues.
+    const cardText=valid.map(c=>c.join(' ')).join(' ');
+    const namedVenue=year===2026&&month==='10'&&day==='17'
+      ? (/富士ステークス|アイビーステークス/.test(cardText)?'東京'
+        : /トルマリンステークス|もみじステークス/.test(cardText)?'京都'
+        : /北陸ステークス|妙高特別/.test(cardText)?'新潟':null)
+      : null;
+    const track=ALL_JRA_TRACKS.includes(match)?match:namedVenue;
     for(const c of valid){
      const number=Number(c[0].match(/\d+/)[0]);
      const description=c.slice(1,-1).join(' ').replace(/\s+/g,' ').trim();
