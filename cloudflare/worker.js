@@ -202,6 +202,7 @@ async function jraVerified(){
  return tracks;
 }
 
+// auto-deploy-smoke-20261014: trigger Cloudflare Builds without changing runtime behavior
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
