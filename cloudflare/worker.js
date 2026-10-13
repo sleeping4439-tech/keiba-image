@@ -1,6 +1,21 @@
 // GitHub-to-Cloudflare auto-deploy smoke test: 2026-10-14. No runtime behavior change.
 const LOCATIONS = {札幌:{lat:43.076,lon:141.375},函館:{lat:41.824,lon:140.765},福島:{lat:37.772,lon:140.48},新潟:{lat:37.949,lon:139.186},東京:{lat:35.662,lon:139.485},中山:{lat:35.726,lon:139.963},中京:{lat:35.069,lon:136.983},京都:{lat:34.907,lon:135.725},阪神:{lat:34.781,lon:135.364},小倉:{lat:33.843,lon:130.877}};
 const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
+
+// Official JRA entry-page links independently verified for October 10-12.
+// Never infer an entry page URL from a race number.
+const VERIFIED_ENTRY_CODES={'2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
+function parseJraEntries(html){
+ const entries=[];
+ for(const row of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+  const cells=[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1]).replace(/&nbsp;|&#160;/g,' ').trim());
+  const name=cells.find(v=>/^[ァ-ヶー・]{3,20}$/.test(v));
+  if(!name||entries.some(x=>x.name===name))continue;
+  const no=cells.map(v=>v.match(/^(?:[1-9]|1[0-8])$/)).find(Boolean);
+  if(no)entries.push({number:Number(no[0]),name});
+ }
+ return entries;
+}
 const JRA_PAGES = ['index.html','index2.html','index3.html','index4.html'];
 const BASE = 'https://www.jra.go.jp/keiba/baba/';
 const HEADERS = {'content-type':'application/json; charset=utf-8','access-control-allow-origin':'https://sleeping4439-tech.github.io','cache-control':'public, max-age=600'};
@@ -329,6 +344,25 @@ export default {async fetch(request){
    const at=plain.indexOf('ハロンタイム'),win=plain.indexOf('着順');
    return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\d{2}年[^]{0,100}?\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\s*[\d,，]+\s*メートル\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length,pageTitle:(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]?.replace(/<[^>]+>/g,' ').trim().slice(0,160)||null,charset:(html.match(/<meta[^>]*charset\s*=\s*["']?([^\s"'>]+)/i)||[])[1]||null,headSample:plain.slice(0,550),keywords:{race:plain.includes('レース'),lap:plain.includes('ハロンタイム'),result:plain.includes('レース結果')},finalUrl:response.url});
   }catch(e){return respond({ok:false,error:String(e)})}
+ }
+ if(path==='/entries'||path==='/entries-by-race'){
+  const byRace=path==='/entries-by-race';
+  const date=url.searchParams.get('date')||'';
+  const track=url.searchParams.get('track')||'';
+  const number=Number(url.searchParams.get('number'));
+  const key=date+'|'+track+'|'+number;
+  const verified=VERIFIED_ENTRY_CODES[key];
+  const sourceUrl=byRace?(verified?'https://www.jra.go.jp/JRADB/accessD.html?CNAME='+encodeURIComponent(verified):''):(url.searchParams.get('sourceUrl')||'');
+  if(!sourceUrl)return respond({available:false,date,track,number,error:'official_entry_url_not_yet_verified'});
+  try{
+   const target=new URL(sourceUrl);
+   if(target.protocol!=='https:'||target.hostname!=='www.jra.go.jp'||target.pathname!=='/JRADB/accessD.html'||!/^pw01dde[0-9a-zA-Z/]+$/i.test(target.searchParams.get('CNAME')||''))return respond({available:false,error:'invalid_official_entry_url'},400);
+   const response=await fetch(target.toString());
+   if(!response.ok)return respond({available:false,date,track,number,error:'JRA_HTTP_'+response.status,sourceUrl});
+   const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+   const entries=parseJraEntries(html);
+   return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed'});
+  }catch(e){return respond({available:false,date,track,number,error:String(e),sourceUrl})}
  }
  if(path==='/races'){
  try {
