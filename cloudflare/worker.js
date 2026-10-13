@@ -330,6 +330,31 @@ export default {async fetch(request){
    return respond({ok:true,httpStatus:response.status,title:(plain.match(/20\d{2}年[^]{0,100}?\d+レース/)||[])[0]||null,course:(plain.match(/コース[：:]?\s*[\d,，]+\s*メートル\s*[（(][^）)]+/)||[])[0]||null,lapSection:at>=0?plain.slice(at,at+220):null,resultSection:win>=0?plain.slice(win,win+350):null,htmlLength:html.length,pageTitle:(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)||[])[1]?.replace(/<[^>]+>/g,' ').trim().slice(0,160)||null,charset:(html.match(/<meta[^>]*charset\s*=\s*["']?([^\s"'>]+)/i)||[])[1]||null,headSample:plain.slice(0,550),keywords:{race:plain.includes('レース'),lap:plain.includes('ハロンタイム'),result:plain.includes('レース結果')},finalUrl:response.url});
   }catch(e){return respond({ok:false,error:String(e)})}
  }
+ if(path==='/entries'||path==='/entries-by-race'){
+  const manual=path==='/entries';
+  const date=url.searchParams.get('date')||'';
+  const track=url.searchParams.get('track')||'';
+  const number=Number(url.searchParams.get('number'));
+  const sourceUrl=url.searchParams.get('sourceUrl')||'';
+  let target;
+  try{
+   if(!manual)return respond({available:false,date,track,number,error:'JRA公式出馬表のURLをレース番号だけから安全に特定できません。出馬表公開後、公式URLを入力してください。'});
+   target=new URL(sourceUrl);
+   if(target.protocol!=='https:'||!['www.jra.go.jp','jra.jp'].includes(target.hostname)||target.pathname!=='/JRADB/accessD.html'||!/^pw01dde[0-9a-zA-Z/]+$/i.test(target.searchParams.get('CNAME')||''))return respond({available:false,error:'invalid_jra_entry_url'},400);
+   const res=await fetch(target.href,{redirect:'follow'});
+   if(!res.ok)return respond({available:false,error:'JRA_HTTP_'+res.status,sourceUrl:target.href});
+   const html=new TextDecoder('shift_jis').decode(await res.arrayBuffer());
+   const rows=[...html.matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)];
+   const entries=[];
+   for(const row of rows){
+    const cells=[...row[1].matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(m=>textOnly(m[1]).replace(/&nbsp;|&#160;/g,' ').trim());
+    const n=cells.map(x=>x.match(/^([1-9]|1[0-8])$/)).find(Boolean);
+    const name=cells.find(x=>/^[ァ-ヶー・]{3,18}$/.test(x));
+    if(n&&name&&!entries.some(e=>e.name===name))entries.push({number:Number(n[1]),name});
+   }
+   return respond({available:entries.length>0,sourceUrl:target.href,entries,error:entries.length?'':'JRA出馬表から馬名を解析できませんでした'});
+  }catch(e){return respond({available:false,error:String(e)})}
+ }
  if(path==='/races'){
  try {
   const date=new URL(request.url).searchParams.get('date');
