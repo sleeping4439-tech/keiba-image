@@ -365,7 +365,7 @@ export default {async fetch(request){
    if(!response.ok)return respond({available:false,date,track,number,error:'JRA_HTTP_'+response.status,sourceUrl});
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const entries=parseJraEntries(html);
-   return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed',diagnostics:{htmlLength:html.length,rowCount:[...html.matchAll(/<tr\\b/gi)].length,pageTitle:textOnly((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)||[])[1]||'').slice(0,120)}});
+   return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed',diagnostics:{htmlLength:html.length,rowCount:[...html.matchAll(/<tr\\b/gi)].length,pageTitle:''}});
   }catch(e){return respond({available:false,date,track,number,error:String(e),sourceUrl})}
  }
  if(path==='/races'){
