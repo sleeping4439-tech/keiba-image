@@ -1,3 +1,4 @@
+// GitHub-to-Cloudflare auto-deploy smoke test: 2026-10-14. No runtime behavior change.
 const LOCATIONS = {札幌:{lat:43.076,lon:141.375},函館:{lat:41.824,lon:140.765},福島:{lat:37.772,lon:140.48},新潟:{lat:37.949,lon:139.186},東京:{lat:35.662,lon:139.485},中山:{lat:35.726,lon:139.963},中京:{lat:35.069,lon:136.983},京都:{lat:34.907,lon:135.725},阪神:{lat:34.781,lon:135.364},小倉:{lat:33.843,lon:130.877}};
 const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 const JRA_PAGES = ['index.html','index2.html','index3.html','index4.html'];
