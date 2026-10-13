@@ -347,10 +347,16 @@ export default {async fetch(request){
     const parsed=trs.map(tr=>[...tr[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1])));
     const valid=parsed.filter(c=>/^\s*(?:[1-9]|1[0-2])\s*(?:レース|R)\s*$/.test(c[0]||'')&&c.length>=3);
     if(!valid.length)continue;
-    const before=stripped.slice(Math.max(0,t.index-3000),t.index);
-    const match=[...before.matchAll(/(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)競馬場|\d+回(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)\d+日/g)].pop()?.[0]||'';
+    // The JRA calendar uses venue labels such as "東京" and "第4回東京第6日",
+    // not necessarily "東京競馬場". Read the nearest heading before each table.
+    const before=stripped.slice(Math.max(0,t.index-1800),t.index);
+    const headings=[...before.matchAll(/<(?:h[1-6]|th|caption|div|p|span|strong|b)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|th|caption|div|p|span|strong|b)>/gi)]
+      .map(m=>textOnly(m[1])).filter(v=>v.length<120);
+    const venuePattern=/(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)/g;
+    const venueCandidates=headings.flatMap(v=>[...v.matchAll(venuePattern)].map(m=>m[0]));
+    const match=venueCandidates.at(-1)||[...textOnly(before).matchAll(venuePattern)].map(m=>m[0]).at(-1)||'';
     diagnostics.push({heading:match,rows:valid.length});
-    const track=ALL_JRA_TRACKS.find(name=>match.includes(name))||null;
+    const track=ALL_JRA_TRACKS.includes(match)?match:null;
     for(const c of valid){
      const number=Number(c[0].match(/\d+/)[0]);
      const description=c.slice(1,-1).join(' ').replace(/\s+/g,' ').trim();
