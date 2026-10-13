@@ -7,22 +7,39 @@ const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 const VERIFIED_ENTRY_CODES={'2026-10-12|東京|11':'pw01dde0105202604051120261012/FE','2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
 function parseJraEntries(html){
  const entries=[];
- const section=html.match(/<table\b[^>]*class=["'][^"']*(?:horse|race|shutuba|entry)[^"']*["'][^>]*>[\s\S]*?<\/table>/i);
- const scope=section?section[0]:html;
- const rows=[...scope.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+ // Read every table; the JRA desktop entry table is not always the first
+ // table whose CSS class contains "race".
+ const rows=[...html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+ const clean=value=>textOnly(value).replace(/&(?:nbsp|#160|#xA0|#12288);/gi,' ').trim();
  for(const row of rows){
-  const cells=[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1]).replace(/&nbsp;|&#160;|&#12288;/g,' ').trim());
-  const numberCell=cells.find(v=>/^(?:[1-9]|1[0-8])$/.test(v));
-  if(!numberCell)continue;
-  const links=[...row[1].matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map(m=>textOnly(m[1]));
-  const candidates=[...links,...cells];
-  let name='';
-  for(const candidate of candidates){
-   const match=candidate.match(/^\s*([ァ-ヶー・]{3,20})(?=\s|[0-9０-９]|$)/);
-   if(match&&!/^(?:レース|オッズ|出馬表|馬柱|レース結果)$/.test(match[1])){name=match[1];break;}
+  const cells=[...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>({html:m[1],text:clean(m[1])}));
+  if(cells.length<3)continue;
+  // Horse number appears before horse name; do not confuse with other
+  // numeric values in the form/history columns.
+  let found=null;
+  for(let i=0;i<Math.min(cells.length-1,4);i++){
+   if(!/^(?:[1-9]|1[0-8])$/.test(cells[i].text))continue;
+   for(let j=i+1;j<Math.min(cells.length,i+4);j++){
+    const cell=cells[j];
+    const anchors=[...cell.html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map(m=>clean(m[1]));
+    const candidates=[...anchors,cell.text];
+    for(const candidate of candidates){
+     // Odds, race record and owner often follow the horse name directly.
+     const match=candidate.match(/^([ァ-ヶー・]{2,24})(?=[0-9０-９(\s]|$)/);
+     if(match&&match[1].length>=3){
+      found={number:Number(cells[i].text),name:match[1]};
+      break;
+     }
+    }
+    if(found)break;
+   }
+   if(found)break;
   }
-  if(name&&!entries.some(e=>e.name===name))entries.push({number:Number(numberCell),name});
+  if(found&&!entries.some(e=>e.number===found.number))entries.push(found);
  }
+ entries.sort((x,y)=>x.number-y.number);
+ // Reject false positives from non-entry tables.
+ if(entries.length<2||entries.length>18)return [];
  return entries;
 }
 const JRA_PAGES = ['index.html','index2.html','index3.html','index4.html'];
