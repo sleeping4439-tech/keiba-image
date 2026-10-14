@@ -4,7 +4,7 @@ const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 
 // Official JRA entry-page links independently verified for October 10-12.
 // Never infer an entry page URL from a race number.
-const VERIFIED_ENTRY_CODES={'2026-10-12|東京|11':'pw01dde0105202604051120261012/FE','2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
+const VERIFIED_ENTRY_CODES={'2026-10-12|京都|11':'pw01dde0108202604051120261012/DC','2026-10-11|京都|11':'pw01dde1008202604041120261011/8B','2026-10-10|京都|11':'pw01dde0108202604031120261010/7C','2026-10-11|東京|11':'pw01dde0105202604041120261011/CE','2026-10-10|東京|11':'pw01dde1005202604031120261010/7D','2026-10-12|東京|11':'pw01dde0105202604051120261012/FE','2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
 function parseJraEntries(html){
  const entries=[];
  // Read every table; the JRA desktop entry table is not always the first
@@ -378,7 +378,33 @@ export default {async fetch(request){
   const number=Number(url.searchParams.get('number'));
   const key=date+'|'+track+'|'+number;
   const verified=VERIFIED_ENTRY_CODES[key];
-  const sourceUrl=byRace?(verified?'https://www.jra.go.jp/JRADB/accessD.html?CNAME='+encodeURIComponent(verified):''):(url.searchParams.get('sourceUrl')||'');
+  // Discover race-specific CNAMEs from official JRA entry pages for the
+  // same date. Never fabricate the opaque checksum suffix.
+  async function discoverOfficialCode(){
+   if(verified)return verified;
+   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!ALL_JRA_TRACKS.includes(track)||!Number.isInteger(number)||number<1||number>12)return '';
+   const seeds=Object.entries(VERIFIED_ENTRY_CODES).filter(([k])=>k.startsWith(date+'|')).slice(0,3);
+   const expectedDate=date.replace(/-/g,'');
+   const expectedVenue={札幌:'01',函館:'02',福島:'03',新潟:'04',東京:'05',中山:'06',中京:'07',京都:'08',阪神:'09',小倉:'10'}[track];
+   const expectedRace=String(number).padStart(2,'0');
+   for(const [,seed] of seeds){
+    try{
+     const page=await fetch('https://www.jra.go.jp/JRADB/accessD.html?CNAME='+encodeURIComponent(seed));
+     if(!page.ok)continue;
+     const body=new TextDecoder('shift_jis').decode(await page.arrayBuffer());
+     const matches=[...body.matchAll(/pw01dde[0-9a-zA-Z/]{20,65}/gi)].map(m=>m[0]);
+     for(const code of matches){
+      // CNAME format: pw01dde + mode(2) + venue(2) + year(4) +
+      // meeting(2) + day(2) + race(2) + date(8) + /checksum.
+      const parsed=code.match(/^pw01dde\d{2}(\d{2})\d{4}\d{2}\d{2}(\d{2})(\d{8})\/[0-9A-F]{2}$/i);
+      if(parsed&&parsed[1]===expectedVenue&&parsed[2]===expectedRace&&parsed[3]===expectedDate)return code;
+     }
+    }catch(e){}
+   }
+   return '';
+  }
+  const resolvedCode=byRace?await discoverOfficialCode():verified;
+  const sourceUrl=byRace?(resolvedCode?'https://www.jra.go.jp/JRADB/accessD.html?CNAME='+encodeURIComponent(resolvedCode):''):(url.searchParams.get('sourceUrl')||'');
   if(!sourceUrl)return respond({available:false,date,track,number,error:'official_entry_url_not_yet_verified'});
   try{
    const target=new URL(sourceUrl);
