@@ -214,9 +214,8 @@ function showDay(d){
     const title=document.createElement('button');
     title.appendChild(raceHeading(race.number,race.name,true));
     title.addEventListener('click',()=>openRace(iso(d),activeTrack,race));
-    row.appendChild(title);
     if(FAVORITE_DATES.has(iso(d))){const star=document.createElement('button');star.type='button';star.className='favorite-star';const favorite={date:iso(d),track:activeTrack,number:race.number,name:race.name};star.textContent=hasFavorite(favorite)?'★':'☆';star.setAttribute('aria-label',(hasFavorite(favorite)?'お気に入り解除: ':'お気に入り追加: ')+activeTrack+race.number+'R');star.addEventListener('click',()=>toggleFavorite(favorite));row.appendChild(star)}
-    area.appendChild(row);
+    row.appendChild(title);area.appendChild(row);
    }
    if(!list.length){const p=document.createElement('p');p.className='empty';p.textContent='この競馬場のレース情報はありません。';area.appendChild(p)}
    if(data.sourceUrl){const a=document.createElement('a');a.href=data.sourceUrl;a.target='_blank';a.rel='noopener';a.textContent='JRA公式の競馬番組を確認 ↗';a.style.cssText='display:inline-block;margin-top:18px;font-size:13px';area.appendChild(a)}
