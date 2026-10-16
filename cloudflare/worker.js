@@ -482,28 +482,48 @@ export default {async fetch(request){
    if(!seeds.length)missing.push(day);
    for(const [key,code] of seeds)work.set(code,{key,code,day:key.slice(0,10)});
   }
-  const tasks=[...work.values()];
-  diagnostics.seedCount=tasks.length;
-  // Limit concurrency to avoid exceeding Cloudflare's per-request subrequest allowance.
-  let next=0;
-  await Promise.all(Array.from({length:Math.min(5,tasks.length)},async()=>{
-   while(next<tasks.length){
-    const item=tasks[next++];
-    try{
-     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(item.code),{signal:AbortSignal.timeout(6500)});
-     if(!response.ok)continue;
-     diagnostics.fetchSucceeded++;
-     const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
-     const race=parseOfficialLap(html,item.code,track,item.day);
-     if(!race||race.surface!=='芝')continue;
-     diagnostics.parsed++;
-     coveredYears.add(item.day.slice(0,4));
-     const key=race.surface+'|'+race.distance;
-     const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
-     group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(item.day.slice(0,4));groups.set(key,group);
-    }catch(e){}
-   }
-  }));
+  diagnostics.seedCount=work.size;
+  diagnostics.discovered=0;
+  const processed=new Set();
+  const allowedDates=new Set([...work.values()].map(item=>item.day));
+  const addRace=(race,year)=>{
+   if(!race||race.surface!=='芝')return;
+   diagnostics.parsed++;
+   coveredYears.add(year);
+   const key=race.surface+'|'+race.distance;
+   const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
+   group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(year);groups.set(key,group);
+  };
+  async function fetchBatch(items){
+   let next=0;
+   await Promise.all(Array.from({length:Math.min(12,items.length)},async()=>{
+    while(next<items.length){
+     const item=items[next++];
+     if(processed.has(item.code))continue;
+     processed.add(item.code);
+     try{
+      const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(item.code),{signal:AbortSignal.timeout(6500)});
+      if(!response.ok)continue;
+      diagnostics.fetchSucceeded++;
+      const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+      addRace(parseOfficialLap(html,item.code,track,item.day),item.day.slice(0,4));
+      // Follow JRA-published same-date result links only. Never fabricate opaque result URLs.
+      for(const code of resultCodesInHtml(html)){
+       const info=resultCodeInfo(code);
+       if(!info||info.venue!==JRA_VENUES[track])continue;
+       const day=info.date.slice(0,4)+'-'+info.date.slice(4,6)+'-'+info.date.slice(6,8);
+       if(!allowedDates.has(day)||work.has(code))continue;
+       work.set(code,{code,day});
+       diagnostics.discovered++;
+      }
+     }catch(e){}
+    }
+   }));
+  }
+  await fetchBatch([...work.values()].slice(0,32));
+  // Worker request budget: at most 48 official page requests in total.
+  await fetchBatch([...work.values()].filter(item=>!processed.has(item.code)).slice(0,Math.max(0,48-processed.size)));
+  diagnostics.totalRequested=processed.size;
   const averages=[...groups.values()].map(g=>({surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
   return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
