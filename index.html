@@ -496,7 +496,7 @@ function drawLoad(){
    if(!enabled)return;
    const y=320+radii[i];
    for(let x=660;x>=340;x-=75){
-     grip+=`<g transform="translate(${x} ${y})"><path d="${state.track==='東京' ? 'M-18 0H13 M5 -8L13 0L5 8' : 'M18 0H-13 M-5 -8L-13 0L-5 8'}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+     grip+=`<g transform="translate(${x} ${y})"><path d="${(state.track==='東京'||state.track==='新潟') ? 'M-18 0H13 M5 -8L13 0L5 8' : 'M18 0H-13 M-5 -8L-13 0L-5 8'}" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`;
    }
  });
  $('gripOverlays').innerHTML=grip;
