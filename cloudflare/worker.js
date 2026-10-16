@@ -473,29 +473,39 @@ export default {async fetch(request){
    start.setUTCDate(start.getUTCDate()-364*years);
    dates.push(start.toISOString().slice(0,10));
   }
-  const groups=new Map(),coveredYears=new Set(),missing=[];
-  await Promise.all(dates.map(async day=>{
-   const weekStart=new Date(day+'T00:00:00Z');
-   const candidateDays=Array.from({length:29},(_,i)=>{const d=new Date(weekStart);d.setUTCDate(d.getUTCDate()+i-14);return d.toISOString().slice(0,10)});
-   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.some(d=>key.startsWith(d+'|'+track+'|'))).map(([key,code])=>({code,day:key.slice(0,10)}));
-   if(!seeds.length){missing.push(day);return}
-   const races=await Promise.all(seeds.map(async code=>{
+  const groups=new Map(),coveredYears=new Set(),missing=[],diagnostics={seedCount:0,fetchSucceeded:0,parsed:0};
+  const work=new Map();
+  for(const day of dates){
+   const center=new Date(day+'T00:00:00Z');
+   const candidateDays=new Set(Array.from({length:15},(_,i)=>{const d=new Date(center);d.setUTCDate(d.getUTCDate()+i-7);return d.toISOString().slice(0,10)}));
+   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.has(key.slice(0,10))&&key.includes('|'+track+'|'));
+   if(!seeds.length)missing.push(day);
+   for(const [key,code] of seeds)work.set(code,{key,code,day:key.slice(0,10)});
+  }
+  const tasks=[...work.values()];
+  diagnostics.seedCount=tasks.length;
+  // Limit concurrency to avoid exceeding Cloudflare's per-request subrequest allowance.
+  let next=0;
+  await Promise.all(Array.from({length:Math.min(5,tasks.length)},async()=>{
+   while(next<tasks.length){
+    const item=tasks[next++];
     try{
-     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code.code),{signal:AbortSignal.timeout(8500)});
-     if(!response.ok)return null;
-     return parseOfficialLap(new TextDecoder('shift_jis').decode(await response.arrayBuffer()),code.code,track,code.day);
-    }catch(e){return null}
-   }));
-   for(const race of races.filter(Boolean)){
-    if(race.surface!=='芝')continue;
-    coveredYears.add(day.slice(0,4));
-    const key=race.surface+'|'+race.distance;
-    const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
-    group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(day.slice(0,4));groups.set(key,group);
+     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(item.code),{signal:AbortSignal.timeout(6500)});
+     if(!response.ok)continue;
+     diagnostics.fetchSucceeded++;
+     const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+     const race=parseOfficialLap(html,item.code,track,item.day);
+     if(!race||race.surface!=='芝')continue;
+     diagnostics.parsed++;
+     coveredYears.add(item.day.slice(0,4));
+     const key=race.surface+'|'+race.distance;
+     const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
+     group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(item.day.slice(0,4));groups.set(key,group);
+    }catch(e){}
    }
   }));
   const averages=[...groups.values()].map(g=>({surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
-  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
+  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
  if(path==='/laps-by-day'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
