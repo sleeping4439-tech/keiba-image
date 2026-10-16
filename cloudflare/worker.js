@@ -8,6 +8,11 @@ const VERIFIED_ENTRY_CODES={'2026-10-17|東京|7':'pw01dde0105202604060720261017
 
 // Result URLs are opaque: use only JRA-published CNAMEs, never guess their checksums.
 const VERIFIED_RESULT_CODES={
+ '2024-10-12|京都|9':'pw01sde1008202405030920241012/0A',
+ '2024-10-06|京都|11':'pw01sde1008202405021120241006/DB',
+ '2023-10-09|京都|11':'pw01sde1008202302031120231009/EB',
+ '2023-10-07|東京|11':'pw01sde1005202304011120231007/0F',
+ '2023-10-07|京都|7':'pw01sde0108202302010720231007/98',
  '2025-10-18|東京|2':'pw01sde0105202504060220251018/F7',
  '2025-10-18|東京|3':'pw01sde0105202504060320251018/AC',
  '2025-10-18|東京|4':'pw01sde0105202504060420251018/61',
@@ -444,7 +449,7 @@ export default {async fetch(request){
   const groups=new Map(),coveredYears=new Set(),missing=[];
   await Promise.all(dates.map(async day=>{
    const weekStart=new Date(day+'T00:00:00Z');
-   const candidateDays=Array.from({length:15},(_,i)=>{const d=new Date(weekStart);d.setUTCDate(d.getUTCDate()+i-7);return d.toISOString().slice(0,10)});
+   const candidateDays=Array.from({length:29},(_,i)=>{const d=new Date(weekStart);d.setUTCDate(d.getUTCDate()+i-14);return d.toISOString().slice(0,10)});
    const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.some(d=>key.startsWith(d+'|'+track+'|'))).map(([key,code])=>({code,day:key.slice(0,10)}));
    if(!seeds.length){missing.push(day);return}
    const races=await Promise.all(seeds.map(async code=>{
@@ -463,7 +468,7 @@ export default {async fetch(request){
    }
   }));
   const averages=[...groups.values()].map(g=>({surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
-  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:coveredYears.size===5,missingDates:missing,averages,notice:'公式結果URLを確認できたレースのみ集計。5年分未収集の場合は参考値であり5年平均ではありません。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
+  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
  if(path==='/laps-by-day'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
