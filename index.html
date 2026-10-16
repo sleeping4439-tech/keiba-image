@@ -210,6 +210,13 @@ async function renderLapPopup(){
    notice.style.cssText='font-size:12px;color:#687d70;margin:0 0 10px';
    notice.textContent=data.complete?'過去5年の同時期・距離別平均（取得済みデータ）':'過去5年分の収集中：現在は一部の公式結果のみ取得済み。以下は5年平均ではなく暫定参考値です。';
    body.append(notice);
+   if(data.diagnostics){
+    const d=data.diagnostics;
+    const status=document.createElement('p');
+    status.style.cssText='font-size:12px;color:#687d70;margin:0 0 10px';
+    status.textContent='取得状況：対象URL '+d.seedCount+'件／接続成功 '+d.fetchSucceeded+'件／芝ラップ解析成功 '+d.parsed+'件';
+    body.append(status);
+   }
    const rows=Array.isArray(data.averages)?data.averages.filter(r=>r.surface==='芝'):[];
    if(!rows.length){const p=document.createElement('p');p.textContent='この開催時期の過去データはまだ取得できていません。';body.append(p);return}
    const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums';
