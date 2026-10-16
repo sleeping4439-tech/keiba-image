@@ -438,25 +438,24 @@ export default {async fetch(request){
   const dates=[];
   for(let years=1;years<=5;years++){
    const start=new Date(base);
-   start.setUTCFullYear(start.getUTCFullYear()-years);
-   // Match the same weekday and approximate calendar week, allowing calendar drift.
-   const dayShift=(base.getUTCDay()-start.getUTCDay()+7)%7;
-   start.setUTCDate(start.getUTCDate()+dayShift);
+   start.setUTCDate(start.getUTCDate()-364*years);
    dates.push(start.toISOString().slice(0,10));
   }
   const groups=new Map(),coveredYears=new Set(),missing=[];
   await Promise.all(dates.map(async day=>{
-   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>key.startsWith(day+'|'+track+'|')).map(([,code])=>code);
+   const weekStart=new Date(day+'T00:00:00Z');
+   const candidateDays=Array.from({length:15},(_,i)=>{const d=new Date(weekStart);d.setUTCDate(d.getUTCDate()+i-7);return d.toISOString().slice(0,10)});
+   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.some(d=>key.startsWith(d+'|'+track+'|'))).map(([key,code])=>({code,day:key.slice(0,10)}));
    if(!seeds.length){missing.push(day);return}
    const races=await Promise.all(seeds.map(async code=>{
     try{
-     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code),{signal:AbortSignal.timeout(8500)});
+     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code.code),{signal:AbortSignal.timeout(8500)});
      if(!response.ok)return null;
-     return parseOfficialLap(new TextDecoder('shift_jis').decode(await response.arrayBuffer()),code,track,day);
+     return parseOfficialLap(new TextDecoder('shift_jis').decode(await response.arrayBuffer()),code.code,track,code.day);
     }catch(e){return null}
    }));
    for(const race of races.filter(Boolean)){
-    if(race.surface==='障害')continue;
+    if(race.surface!=='芝')continue;
     coveredYears.add(day.slice(0,4));
     const key=race.surface+'|'+race.distance;
     const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
