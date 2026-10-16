@@ -482,9 +482,13 @@ export default {async fetch(request){
  if(path==='/historical-lap-averages'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
+  const requestedYear=url.searchParams.get('year')||'';
+  if(requestedYear&&!/^(202[0-9])$/.test(requestedYear))return respond({error:'invalid_year'},400);
+  if(requestedYear&&(Number(requestedYear)>=Number(date.slice(0,4))||Number(requestedYear)<Number(date.slice(0,4))-5))return respond({error:'year_out_of_range'},400);
   const base=new Date(date+'T00:00:00Z');
   const dates=[];
   for(let years=1;years<=5;years++){
+   if(requestedYear&&Number(requestedYear)!==Number(date.slice(0,4))-years)continue;
    const start=new Date(base);
    start.setUTCDate(start.getUTCDate()-364*years);
    dates.push(start.toISOString().slice(0,10));
@@ -544,7 +548,7 @@ export default {async fetch(request){
   await fetchBatch([...work.values()].filter(item=>!processed.has(item.code)).slice(0,Math.max(0,48-processed.size)));
   diagnostics.totalRequested=processed.size;
   const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
-  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
+  return new Response(JSON.stringify({date,track,requestedYear:requestedYear||null,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
  if(path==='/laps-by-day'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
