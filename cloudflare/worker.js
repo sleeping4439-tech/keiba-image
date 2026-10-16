@@ -5,6 +5,44 @@ const ALL_JRA_TRACKS=Object.keys(LOCATIONS);
 // Official JRA entry-page links independently verified for October 10-12.
 // Never infer an entry page URL from a race number.
 const VERIFIED_ENTRY_CODES={'2026-10-17|東京|7':'pw01dde0105202604060720261017/0E','2026-10-17|京都|2':'pw01dde0108202604060220261017/63','2026-10-17|新潟|6':'pw01dde0104202604010620261017/D0','2026-10-18|東京|3':'pw01dde0105202604070320261018/6A','2026-10-18|京都|5':'pw01dde0108202604070520261018/B2','2026-10-18|新潟|7':'pw01dde0104202604020720261018/B5','2026-10-12|京都|11':'pw01dde0108202604051120261012/DC','2026-10-11|京都|11':'pw01dde1008202604041120261011/8B','2026-10-10|京都|11':'pw01dde0108202604031120261010/7C','2026-10-11|東京|11':'pw01dde0105202604041120261011/CE','2026-10-10|東京|11':'pw01dde1005202604031120261010/7D','2026-10-12|東京|11':'pw01dde0105202604051120261012/FE','2026-10-10|京都|4':'pw01dde0108202604030420261010/49','2026-10-10|京都|1':'pw01dde0108202604030120261010/2A','2026-10-12|京都|4':'pw01dde0108202604050420261012/A9','2026-10-12|京都|6':'pw01dde0108202604050620261012/13','2026-10-12|京都|7':'pw01dde0108202604050720261012/C8','2026-10-10|東京|1':'pw01dde1005202604030120261010/2B','2026-10-10|東京|12':'pw01dde0105202604031220261010/53','2026-10-11|東京|12':'pw01dde0105202604041220261011/83','2026-10-12|京都|1':'pw01dde0108202604050120261012/8A','2026-10-12|京都|2':'pw01dde0108202604050220261012/3F','2026-10-12|京都|10':'pw01dde0108202604051020261012/27','2026-10-12|京都|12':'pw01dde0108202604051220261012/91','2026-10-12|東京|5':'pw01dde0105202604050520261012/80','2026-10-12|東京|12':'pw01dde0105202604051220261012/B3','2026-10-11|京都|1':'pw01dde0108202604040120261011/5A','2026-10-11|京都|2':'pw01dde0108202604040220261011/0F','2026-10-11|京都|3':'pw01dde0108202604040320261011/C4','2026-10-11|京都|5':'pw01dde0108202604040520261011/2E','2026-10-11|京都|6':'pw01dde0108202604040620261011/E3','2026-10-11|京都|7':'pw01dde0108202604040720261011/98','2026-10-11|京都|9':'pw01dde0108202604040920261011/02','2026-10-11|京都|12':'pw01dde0108202604041220261011/61','2026-10-10|京都|12':'pw01dde0108202604031220261010/31'};
+
+// Result URLs are opaque: use only JRA-published CNAMEs, never guess their checksums.
+const VERIFIED_RESULT_CODES={
+ '2026-10-12|東京|6':'pw01sde1005202604050620261012/D0',
+ '2026-10-12|東京|12':'pw01sde0105202604051220261012/6F',
+ '2026-10-03|東京|1':'pw01sde1005202604010120261003/DE',
+ '2026-10-03|東京|7':'pw01sde1005202604010720261003/1C',
+ '2026-06-07|東京|1':'pw01sde1005202603020120260607/DE'
+};
+const JRA_VENUES={札幌:'01',函館:'02',福島:'03',新潟:'04',東京:'05',中山:'06',中京:'07',京都:'08',阪神:'09',小倉:'10'};
+function resultCodeInfo(code){
+ const m=code.match(/^pw01sde\d{2}(\d{2})(\d{4})\d{2}\d{2}(\d{2})(\d{8})\/[0-9a-f]{2}$/i);
+ return m?{venue:m[1],year:m[2],number:Number(m[3]),date:m[4]}:null;
+}
+function resultCodesInHtml(html){
+ const codes=new Set();
+ for(const m of html.matchAll(/pw01sde\d{2}\d{2}\d{4}\d{2}\d{2}\d{2}\d{8}(?:\/|%2F)[0-9a-f]{2}/gi)){
+  const code=m[0].replace(/%2F/i,'/');
+  if(resultCodeInfo(code))codes.add(code);
+ }
+ return [...codes];
+}
+function parseOfficialLap(html,code,track,date){
+ const info=resultCodeInfo(code);
+ if(!info||info.venue!==JRA_VENUES[track]||info.date!==date.replace(/-/g,''))return null;
+ const plain=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/&nbsp;|&#160;/gi,' '));
+ const at=plain.indexOf('ハロンタイム');
+ if(at<0)return null;
+ const section=plain.slice(at+6,at+400).split(/上り|コーナー通過順位|払戻金/)[0];
+ const match=section.match(/(\d{1,2}\.\d)\s*(?:[-－ー−]\s*\d{1,2}\.\d\s*){2,}/);
+ if(!match)return null;
+ const laps=(match[0].match(/\d{1,2}\.\d/g)||[]).map(Number);
+ const distanceMatch=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/);
+ const distance=distanceMatch?Number(distanceMatch[1].replace(/[,，]/g,'')):null;
+ if(!distance||laps.length!==Math.ceil(distance/200)||laps.some(x=>x<7||x>30))return null;
+ const title=(plain.match(/(?:\d{1,2}レース)\s+(.{2,70}?)\s+(?:\d歳|障害|コース)/)||[])[1]||'';
+ return {number:info.number,name:title.trim(),surface:distanceMatch[2],distance,laps,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
+}
 function parseJraEntries(html){
  const entries=[];
  // Read every table; the JRA desktop entry table is not always the first
@@ -357,6 +395,40 @@ export default {async fetch(request){
   return respond({checkedAt:new Date().toISOString(),results});
  }
  // Diagnostic-only lap discovery. No bulk crawl: one official page per request.
+ if(path==='/laps-by-day'){
+  const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
+  if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
+  const prefix=date+'|'+track+'|';
+  const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([k])=>k.startsWith(prefix)).map(([,v])=>v);
+  if(!seeds.length)return respond({date,track,races:[],available:false,reason:'result_urls_not_discovered',note:'公式結果URLの自動発見は未対応'},200);
+  const codes=new Set(seeds),pages=new Map();
+  // Fetch a few verified results first, and follow only same-day official result CNAMEs found in their HTML.
+  await Promise.all(seeds.slice(0,3).map(async code=>{
+   try{
+    const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code),{signal:AbortSignal.timeout(8500)});
+    if(!response.ok)return;
+    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+    pages.set(code,html);
+    for(const candidate of resultCodesInHtml(html)){
+     const info=resultCodeInfo(candidate);
+     if(info&&info.venue===JRA_VENUES[track]&&info.date===date.replace(/-/g,''))codes.add(candidate);
+    }
+   }catch(e){}
+  }));
+  const targets=[...codes].slice(0,12);
+  const races=(await Promise.all(targets.map(async code=>{
+   try{
+    let html=pages.get(code);
+    if(!html){
+     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code),{signal:AbortSignal.timeout(8500)});
+     if(!response.ok)return null;
+     html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+    }
+    return parseOfficialLap(html,code,track,date);
+   }catch(e){return null}
+  }))).filter(Boolean).sort((a,b)=>a.number-b.number);
+  return new Response(JSON.stringify({date,track,races,available:races.length>0,partial:races.length<12,source:'JRA official results',reason:races.length?'':'lap_parse_or_fetch_failed'}),{headers:{...HEADERS,'cache-control':races.length?'public, max-age=900':'no-store'}});
+ }
  if(path==='/lap-source-diagnostics'){
   const target=url.searchParams.get('url')||'';
   let u;
