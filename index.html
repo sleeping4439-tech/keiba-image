@@ -170,7 +170,7 @@
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><div class="memo-footer"><small>この端末・ブラウザに自動保存されます</small><a class="memo-history-link" href="./history.html">馬場履歴 →</a></div><div class="memo-nav-buttons"><a href="./races.html">レース一覧 →</a><a href="./yubaroku/">ゆ馬録 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
-<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="previous" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">昨年ラップ</button><button type="button" data-lap-period="average" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">過去5年平均</button></div><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
+<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="average" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">過去5年平均</button></div><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const recordInfoDialog=document.getElementById('recordInfoDialog');
@@ -188,10 +188,10 @@ async function renderLapPopup(){
  const requestId=++lapRequestId;
  const track=state.track;
  const selectedDate=memoDateByTrack[track]||localDate();
- const date=lapPeriod==='previous'?lapReferenceDate(selectedDate):selectedDate;
+ const date=selectedDate;
  document.getElementById('recordInfoTitle').textContent=track+'競馬場｜'+date+' のレースラップ';
  const body=document.getElementById('recordInfoBody');
- body.textContent=(lapPeriod==='previous'?'昨年':lapPeriod==='average'?'過去5年':'当日')+'のラップを取得中…';
+ body.textContent=(lapPeriod==='average'?'過去5年':'当日')+'のラップを取得中…';
  for(const button of document.querySelectorAll('#lapPeriodTabs button')){
   const active=button.dataset.lapPeriod===lapPeriod;
   button.setAttribute('aria-pressed',String(active));
@@ -210,11 +210,11 @@ async function renderLapPopup(){
    notice.style.cssText='font-size:12px;color:#687d70;margin:0 0 10px';
    notice.textContent=data.complete?'過去5年の同時期・距離別平均（取得済みデータ）':'過去5年分の収集中：現在は一部の公式結果のみ取得済み。以下は5年平均ではなく暫定参考値です。';
    body.append(notice);
-   const rows=Array.isArray(data.averages)?data.averages:[];
+   const rows=Array.isArray(data.averages)?data.averages.filter(r=>r.surface==='芝'):[];
    if(!rows.length){const p=document.createElement('p');p.textContent='この開催時期の過去データはまだ取得できていません。';body.append(p);return}
    const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums';
    const head=document.createElement('tr');
-   for(const title of ['条件','平均勝ち時計','平均上がり3F','件数']){const th=document.createElement('th');th.textContent=title;th.style.cssText='text-align:left;border-bottom:1px solid #dce6de;padding:6px 3px';head.append(th)}
+   for(const title of ['芝・距離','平均勝ち時計','平均上がり3F','件数']){const th=document.createElement('th');th.textContent=title;th.style.cssText='text-align:left;border-bottom:1px solid #dce6de;padding:6px 3px';head.append(th)}
    table.append(head);
    const fmt=seconds=>Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0');
    for(const r of rows){
@@ -230,7 +230,7 @@ async function renderLapPopup(){
    body.append(years);
    return;
   }
-  const rows=Array.isArray(data.races)?data.races.filter(r=>Array.isArray(r.laps)&&r.laps.length):[];
+  const rows=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length):[];
   if(!rows.length){
    body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。':'この日のラップを取得できませんでした。公式結果の取得状況を確認してください。';
    return;
