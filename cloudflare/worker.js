@@ -477,8 +477,8 @@ export default {async fetch(request){
   const work=new Map();
   for(const day of dates){
    const center=new Date(day+'T00:00:00Z');
-   const candidateDays=new Set(Array.from({length:15},(_,i)=>{const d=new Date(center);d.setUTCDate(d.getUTCDate()+i-7);return d.toISOString().slice(0,10)}));
-   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.has(key.slice(0,10))&&key.includes('|'+track+'|'));
+   const candidateDays=new Set(Array.from({length:29},(_,i)=>{const d=new Date(center);d.setUTCDate(d.getUTCDate()+i-14);return d.toISOString().slice(0,10)}));
+   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.has(key.slice(0,10))&&key.split('|')[1]===track);
    if(!seeds.length)missing.push(day);
    for(const [key,code] of seeds)work.set(code,{key,code,day:key.slice(0,10)});
   }
