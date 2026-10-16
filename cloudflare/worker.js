@@ -73,15 +73,20 @@ function parseOfficialLap(html,code,track,date){
  const info=resultCodeInfo(code);
  if(!info||info.venue!==JRA_VENUES[track]||info.date!==date.replace(/-/g,''))return null;
  const plain=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/&nbsp;|&#160;/gi,' '));
- const course=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/);
+ const course=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/)
+  ||plain.match(/(?:コース\s*[：:]?\s*)?(芝|ダート|障害)(?:[・･／/]\s*(?:左|右|直線|外|内))*\s*([\d,，]+)\s*メートル/)
+  ||plain.match(/(?:コース\s*[：:]?\s*)?(芝|ダート|障害)\s*[\(（][^）)]{0,40}[\)）]\s*([\d,，]+)\s*メートル/);
+ const courseSurface=/^\d/.test(course?.[1]||'')?course?.[2]:course?.[1];
+ const courseDistance=/^\d/.test(course?.[1]||'')?course?.[1]:course?.[2];
  if(!course)return null;
- const distance=Number(course[1].replace(/[,，]/g,''));
- const surface=course[2];
+ const distance=Number(courseDistance.replace(/[,，]/g,''));
+ const surface=courseSurface;
  if(surface!=='芝'||distance<1000||distance>4000)return null;
  const at=plain.indexOf('ハロンタイム');
  if(at<0)return null;
  const section=plain.slice(at+6,at+420).split(/上り|コーナー通過順位|払戻金/)[0];
- const match=section.match(/\d{1,2}\.\d(?:\s*[-－ー−]\s*\d{1,2}\.\d)+/);
+ const match=section.match(/\d{1,2}\.\d(?:\s*[-－ー−]\s*\d{1,2}\.\d)+/)
+  ||section.match(/\d{1,2}\.\d(?:\s+\d{1,2}\.\d){4,}/);
  if(!match)return null;
  const laps=(match[0].match(/\d{1,2}\.\d/g)||[]).map(Number);
  if(laps.length!==Math.ceil(distance/200)||laps.some(x=>x<7||x>30))return null;
