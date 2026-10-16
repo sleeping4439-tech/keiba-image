@@ -132,12 +132,24 @@
 <text x="617" y="465" font-size="21" fill="#244c3d">ゴール</text><text x="345" y="70" font-size="23" font-weight="700" fill="#315a45">外回り（高低差 2.2m）</text>
 <text x="350" y="272" font-size="22" font-weight="700" fill="#315a45">内回り（高低差 0.8m）</text>
 <text x="70" y="505" class="hint">直線1000mは専用コース。コース形状は模式表示です</text></svg></div>
-<div id="elevationNiigata" class="elevationBlock" hidden><div class="elevationHeading">新潟・芝コースの起伏 <span>外回り／内回り／直線1000m</span></div><div class="niigataTerrainInfo">
-<p><strong>外回り</strong>　高低差 2.2m。向正面に上り下りがあり、長い直線はほぼ平坦。</p>
-<p><strong>内回り</strong>　高低差 0.8m。外回りより起伏が小さい。</p>
-<p><strong>直線1000m</strong>　直線専用コースを使用。</p>
-<p class="muted">※ コース図は模式表示です。精密な勾配・位置を示すものではありません。</p>
-<a href="https://www.jra.go.jp/facilities/race/niigata/course/index.html" target="_blank" rel="noopener">JRA公式コース案内 ↗</a></div></div>
+<div id="elevationNiigata" class="elevationBlock" hidden>
+<div class="elevationHeading">新潟｜芝コース起伏断面 <span>外回り 2.2m／内回り 0.8m</span></div>
+<div class="niigataTerrainInfo">
+<svg class="elevationSvg" viewBox="0 0 1000 470" role="img" aria-label="新潟競馬場の芝外回りと内回りの起伏の模式断面図">
+<rect x="70" y="58" width="860" height="145" rx="8" fill="#f1f8f3"/>
+<rect x="70" y="273" width="860" height="115" rx="8" fill="#f1f8f3"/>
+<g fill="#315a45" font-family="sans-serif" font-size="23" font-weight="700"><text x="75" y="32">外回り（高低差 2.2m）</text><text x="75" y="253">内回り（高低差 0.8m）</text></g>
+<g stroke="#d1e1d6" stroke-width="1" stroke-dasharray="5 6"><path d="M75 113H925 M75 162H925 M75 324H925 M75 365H925"/></g>
+<path d="M85 156 C165 156 195 150 250 130 S320 85 380 94 S480 157 555 160 L915 160" fill="none" stroke="#276348" stroke-width="7" stroke-linecap="round"/>
+<path d="M85 355 C205 355 240 342 325 340 S425 352 520 354 L915 354" fill="none" stroke="#276348" stroke-width="7" stroke-linecap="round"/>
+<g fill="#577466" font-family="sans-serif" font-size="17"><text x="90" y="191">向正面</text><text x="320" y="76">緩やかな起伏</text><text x="700" y="190">長い直線（ほぼ平坦）</text><text x="700" y="382">直線（ほぼ平坦）</text><text x="840" y="132">ゴール →</text><text x="840" y="330">ゴール →</text></g>
+<text x="75" y="432" font-size="17" fill="#6b8074" font-family="sans-serif">※ 模式断面図です。距離・勾配・坂の位置は実測縮尺ではありません。</text>
+</svg>
+<p><strong>外回り</strong>　向正面に起伏があり、長い直線はほぼ平坦。高低差2.2m。</p>
+<p><strong>内回り</strong>　起伏が小さく、高低差0.8m。</p>
+<p><strong>直線1000m</strong>　専用コースを使用。上記の周回断面とは異なります。</p>
+<a href="https://www.jra.go.jp/facilities/race/niigata/course/index.html" target="_blank" rel="noopener">JRA公式コース案内 ↗</a>
+</div></div>
 <div class="terrainLegend"> <span style="color:#b76d2c">↗ 上り</span><span style="color:#3677a5">↘ 下り</span><span>ゴール位置</span></div>
 <div class="elevationBlock" aria-label="JRA公式芝コース高低断面図">
   <div class="elevationHeading">起伏断面 <span>JRA公式図をもとにSVG化（位置・方向を参照）</span></div>
@@ -184,7 +196,7 @@ document.getElementById('recordInfoButton').addEventListener('click',()=>{
  if(recordInfoDialog.open)recordInfoDialog.close();else recordInfoDialog.showModal();
 });
 document.getElementById('recordInfoClose').addEventListener('click',()=>recordInfoDialog.close());
-const ALL_JRA_TRACKS=['札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉'];
+const ALL_JRA_TRACKS=['東京','京都','新潟','札幌','函館','福島','中山','中京','阪神','小倉'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
 for(const track of ALL_JRA_TRACKS){state.clockByTrack[track]??='標準';state.loadByTrack[track]??={'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]};state.gripByTrack[track]??=[false,false,false]}
 Object.defineProperties(state,{clock:{get(){return this.clockByTrack[this.track]},set(value){this.clockByTrack[this.track]=value}},load:{get(){return this.loadByTrack[this.track]}},grip:{get(){return this.gripByTrack[this.track]}}});
