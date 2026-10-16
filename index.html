@@ -170,32 +170,69 @@
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><div class="memo-footer"><small>この端末・ブラウザに自動保存されます</small><a class="memo-history-link" href="./history.html">馬場履歴 →</a></div><div class="memo-nav-buttons"><a href="./races.html">レース一覧 →</a><a href="./yubaroku/">ゆ馬録 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
-<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
+<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="previous" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">昨年ラップ</button></div><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const recordInfoDialog=document.getElementById('recordInfoDialog');
-document.getElementById('recordInfoButton').addEventListener('click',async()=>{
- const date=memoDateByTrack[state.track]||localDate();
- document.getElementById('recordInfoTitle').textContent=state.track+'競馬場｜'+date+' のレースラップ';
+let lapRequestId=0;
+let lapPeriod='current';
+function lapReferenceDate(date){
+ // The comparison is the corresponding race weekend, not simply the same calendar day.
+ if(date==='2026-10-16'||date==='2026-10-17')return '2025-10-18';
+ const d=new Date(date+'T00:00:00Z');
+ if(Number.isNaN(d.getTime()))return '2025-10-18';
+ d.setUTCDate(d.getUTCDate()-364);
+ return d.toISOString().slice(0,10);
+}
+async function renderLapPopup(){
+ const requestId=++lapRequestId;
+ const track=state.track;
+ const selectedDate=memoDateByTrack[track]||localDate();
+ const date=lapPeriod==='previous'?lapReferenceDate(selectedDate):selectedDate;
+ document.getElementById('recordInfoTitle').textContent=track+'競馬場｜'+date+' のレースラップ';
  const body=document.getElementById('recordInfoBody');
- body.textContent='当日のレースラップを確認中…';
- if(!recordInfoDialog.open)recordInfoDialog.showModal();
+ body.textContent=(lapPeriod==='previous'?'昨年':'当日')+'のラップを取得中…';
+ for(const button of document.querySelectorAll('#lapPeriodTabs button')){
+  const active=button.dataset.lapPeriod===lapPeriod;
+  button.setAttribute('aria-pressed',String(active));
+  button.style.background=active?'#eaf5ed':'#fff';
+  button.style.borderColor=active?'#65a779':'#d5ded7';
+ }
  try{
-  const response=await fetch('https://keiba-track-data.sleeping4439.workers.dev/laps-by-day?date='+encodeURIComponent(date)+'&track='+encodeURIComponent(state.track),{signal:AbortSignal.timeout(12000)});
+  const response=await fetch('https://keiba-track-data.sleeping4439.workers.dev/laps-by-day?date='+encodeURIComponent(date)+'&track='+encodeURIComponent(track),{signal:AbortSignal.timeout(18000)});
   if(!response.ok)throw new Error('HTTP '+response.status);
   const data=await response.json();
+  if(requestId!==lapRequestId||!recordInfoDialog.open)return;
   const rows=Array.isArray(data.races)?data.races.filter(r=>Array.isArray(r.laps)&&r.laps.length):[];
-  if(!rows.length){body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。取得済みの開催日から順次対応します。':'この日のラップを取得できませんでした。JRA公式結果の掲載・取得状況を確認してください。';return}
+  if(!rows.length){
+   body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。':'この日のラップを取得できませんでした。公式結果の取得状況を確認してください。';
+   return;
+  }
   body.replaceChildren();
-  if(data.partial){const note=document.createElement('p');note.textContent='取得できたレースのみ表示しています（'+rows.length+'件）。';note.style.cssText='font-size:12px;color:#687d70';body.append(note)}
+  const note=document.createElement('p');
+  note.textContent='JRA公式結果から取得：'+rows.length+'レース'+(data.partial?'（取得できた分のみ）':'');
+  note.style.cssText='font-size:12px;color:#687d70;margin:0 0 8px';
+  body.append(note);
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
    const name=document.createElement('strong');name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m';
    const laps=document.createElement('div');laps.style.cssText='font-size:13px;overflow-wrap:anywhere';laps.textContent=race.laps.join(' - ');
-   const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';block.append(name,laps,source);body.append(block);
+   const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';
+   block.append(name,laps,source);body.append(block);
   }
- }catch(e){body.textContent='ラップ取得サービスへの接続ができませんでした。現在、自動取得機能を準備中です。'}
+ }catch(e){
+  if(requestId===lapRequestId&&recordInfoDialog.open)body.textContent='JRA公式結果の取得に失敗しました。時間をおいて再度お試しください。';
+ }
+}
+document.getElementById('recordInfoButton').addEventListener('click',()=>{
+ lapPeriod='current';
+ if(!recordInfoDialog.open)recordInfoDialog.showModal();
+ renderLapPopup();
 });
+document.querySelectorAll('#lapPeriodTabs button').forEach(button=>button.addEventListener('click',()=>{
+ lapPeriod=button.dataset.lapPeriod;
+ renderLapPopup();
+}));
 document.getElementById('recordInfoClose').addEventListener('click',()=>recordInfoDialog.close());
 const ALL_JRA_TRACKS=['東京','京都','新潟','札幌','函館','福島','中山','中京','阪神','小倉'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
