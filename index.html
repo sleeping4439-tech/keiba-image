@@ -229,23 +229,25 @@ async function renderLapPopup(){
    const difference=(value,baseline)=>{const delta=value-baseline;return (delta>0?'+':'')+delta.toFixed(2)+'秒'};
 
    if(!rows.length){const p=document.createElement('p');p.textContent='この開催時期の過去データはまだ取得できていません。';body.append(p);return}
-   const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums';
+   const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap';
+   const tableWrap=document.createElement('div');tableWrap.style.cssText='width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch';
    const head=document.createElement('tr');
-   for(const title of ['芝・距離','平均勝ち時計','平均上がり3F','件数','当日との差']){const th=document.createElement('th');th.textContent=title;th.style.cssText='text-align:left;border-bottom:1px solid #dce6de;padding:6px 3px';head.append(th)}
+   for(const title of ['芝・距離','平均勝ち時計','平均上がり3F','件数','当日勝ち時計差','当日上がり差']){const th=document.createElement('th');th.textContent=title;th.style.cssText='text-align:left;border-bottom:1px solid #dce6de;padding:6px 3px';head.append(th)}
    table.append(head);
    const fmt=seconds=>Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0');
    for(const r of rows){
     const tr=document.createElement('tr');
     const today=currentByDistance.get(r.distance)||[];
     const todayAverage=today.length?today.reduce((sum,race)=>sum+(Number(race.winningSeconds)||race.laps.reduce((a,b)=>a+b,0)),0)/today.length:null;
-    for(const value of [r.surface+r.distance+'m',fmt(r.averageWinningSeconds),r.averageLast3f.toFixed(2)+'秒',r.count+'R',todayAverage===null?'未開催・未取得':difference(todayAverage,r.averageWinningSeconds)]){
+    const todayLast3f=today.length?today.reduce((sum,race)=>sum+(Number.isFinite(Number(race.last3f))?Number(race.last3f):race.laps.slice(-3).reduce((a,b)=>a+b,0)),0)/today.length:null;
+    for(const value of [r.surface+r.distance+'m',fmt(r.averageWinningSeconds),r.averageLast3f.toFixed(2)+'秒',r.count+'R',todayAverage===null?'—':difference(todayAverage,r.averageWinningSeconds),todayLast3f===null?'—':difference(todayLast3f,r.averageLast3f)]){
      const td=document.createElement('td');td.textContent=value;td.style.cssText='padding:7px 3px;border-bottom:1px solid #edf0ee';tr.append(td);
     }
     table.append(tr);
    }
-   body.append(table);
+   tableWrap.append(table);body.append(tableWrap);
    const years=document.createElement('p');years.style.cssText='font-size:11px;color:#687d70';
-   years.textContent='取得できた年：'+(data.coveredYears||[]).join('・')+'年 / 対象5年間。馬場状態・クラス混合。当日との差は勝ち時計の比較（マイナス＝速い）。当日同距離が複数ある場合は平均。';
+   years.textContent='取得できた年：'+(data.coveredYears||[]).join('・')+'年 / 対象5年間。馬場状態・クラス混合。当日との差はマイナス＝速い、プラス＝遅い。未開催・未取得は「—」。当日同距離が複数ある場合は平均。';
    body.append(years);
    return;
   }
