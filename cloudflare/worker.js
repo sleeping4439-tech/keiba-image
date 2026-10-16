@@ -8,6 +8,13 @@ const VERIFIED_ENTRY_CODES={'2026-10-17|東京|7':'pw01dde0105202604060720261017
 
 // Result URLs are opaque: use only JRA-published CNAMEs, never guess their checksums.
 const VERIFIED_RESULT_CODES={
+ '2024-10-14|東京|1':'pw01sde1005202404040120241014/40',
+ '2024-10-14|東京|6':'pw01sde1005202404040620241014/C9',
+ '2024-10-14|東京|4':'pw01sde0105202404040420241014/80',
+ '2024-10-05|東京|5':'pw01sde0105202404010520241005/3F',
+ '2024-10-06|東京|12':'pw01sde1005202404021220241006/81',
+ '2024-10-05|東京|12':'pw01sde1005202404011220241005/51',
+ '2024-10-13|京都|4':'pw01sde0108202405040420241013/D2',
  '2022-10-15|東京|2':'pw01sde1005202204040220221015/A4',
  '2022-10-15|東京|3':'pw01sde1005202204040320221015/59',
  '2022-10-15|東京|5':'pw01sde1005202204040520221015/C3',
@@ -85,7 +92,7 @@ function parseOfficialLap(html,code,track,date){
  const at=plain.indexOf('ハロンタイム');
  if(at<0)return null;
  const section=plain.slice(at+6,at+420).split(/上り|コーナー通過順位|払戻金/)[0];
- const match=section.match(/\d{1,2}\.\d(?:\s*[-－ー−]\s*\d{1,2}\.\d)+/)
+ const match=section.match(/\d{1,2}\.\d(?:\s*[-－ー−—–]\s*\d{1,2}\.\d)+/)
   ||section.match(/\d{1,2}\.\d(?:\s+\d{1,2}\.\d){4,}/);
  if(!match)return null;
  const laps=(match[0].match(/\d{1,2}\.\d/g)||[]).map(Number);
@@ -93,7 +100,7 @@ function parseOfficialLap(html,code,track,date){
  const title=(plain.match(/(?:\d{1,2}レース)\s+(.{2,70}?)\s+(?:\d歳|障害|コース)/)||[])[1]||'';
  const winningSeconds=Number(laps.reduce((a,b)=>a+b,0).toFixed(1));
  // JRA's 上り3F is the race sectional, not the winning horse's own final 600m.
- const officialLast3f=plain.slice(at+6,at+540).match(/上り\s*(?:4F\s*[\d.]+\s*[-－ー−]\s*)?3F\s*(\d{2}\.\d)/);
+ const officialLast3f=plain.slice(at+6,at+540).match(/上り\s*(?:4F\s*[\d.]+\s*[-－ー−—–]\s*)?3F\s*(\d{2}\.\d)/);
  const last3f=officialLast3f?Number(officialLast3f[1]):Number(laps.slice(-3).reduce((a,b)=>a+b,0).toFixed(1));
  return {number:info.number,name:title.trim(),surface,distance,laps,winningSeconds,last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
 }
