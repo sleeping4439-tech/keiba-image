@@ -73,21 +73,24 @@ function parseOfficialLap(html,code,track,date){
  const info=resultCodeInfo(code);
  if(!info||info.venue!==JRA_VENUES[track]||info.date!==date.replace(/-/g,''))return null;
  const plain=textOnly(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/&nbsp;|&#160;/gi,' '));
+ const course=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/);
+ if(!course)return null;
+ const distance=Number(course[1].replace(/[,，]/g,''));
+ const surface=course[2];
+ if(surface!=='芝'||distance<1000||distance>4000)return null;
  const at=plain.indexOf('ハロンタイム');
  if(at<0)return null;
- const section=plain.slice(at+6,at+400).split(/上り|コーナー通過順位|払戻金/)[0];
- const match=section.match(/(\d{1,2}\.\d)\s*(?:[-－ー−]\s*\d{1,2}\.\d\s*){2,}/);
+ const section=plain.slice(at+6,at+420).split(/上り|コーナー通過順位|払戻金/)[0];
+ const match=section.match(/\d{1,2}\.\d(?:\s*[-－ー−]\s*\d{1,2}\.\d)+/);
  if(!match)return null;
  const laps=(match[0].match(/\d{1,2}\.\d/g)||[]).map(Number);
- const distanceMatch=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/);
- const distance=distanceMatch?Number(distanceMatch[1].replace(/[,，]/g,'')):null;
- if(!distance||laps.length!==Math.ceil(distance/200)||laps.some(x=>x<7||x>30))return null;
- const winnerArea=plain.slice(0,at);
- const winnerMatch=winnerArea.match(/(?:^|\s)1\s+[^\n]{0,240}?\s+(\d:[0-5]\d\.\d)\s/);
- const winningSeconds=winnerMatch?Number(winnerMatch[1].split(':')[0])*60+Number(winnerMatch[1].split(':')[1]):laps.reduce((a,b)=>a+b,0);
- const last3f=Number(laps.slice(-3).reduce((a,b)=>a+b,0).toFixed(1));
+ if(laps.length!==Math.ceil(distance/200)||laps.some(x=>x<7||x>30))return null;
  const title=(plain.match(/(?:\d{1,2}レース)\s+(.{2,70}?)\s+(?:\d歳|障害|コース)/)||[])[1]||'';
- return {number:info.number,name:title.trim(),surface:distanceMatch[2],distance,laps,winningSeconds:Number(winningSeconds.toFixed(1)),last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
+ const winningSeconds=Number(laps.reduce((a,b)=>a+b,0).toFixed(1));
+ // JRA's 上り3F is the race sectional, not the winning horse's own final 600m.
+ const officialLast3f=plain.slice(at+6,at+540).match(/上り\s*(?:4F\s*[\d.]+\s*[-－ー−]\s*)?3F\s*(\d{2}\.\d)/);
+ const last3f=officialLast3f?Number(officialLast3f[1]):Number(laps.slice(-3).reduce((a,b)=>a+b,0).toFixed(1));
+ return {number:info.number,name:title.trim(),surface,distance,laps,winningSeconds,last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
 }
 function parseJraEntries(html){
  const entries=[];
@@ -441,6 +444,20 @@ export default {async fetch(request){
   return respond({checkedAt:new Date().toISOString(),results});
  }
  // Diagnostic-only lap discovery. No bulk crawl: one official page per request.
+ if(path==='/lap-history-diagnostics'){
+  const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
+  if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
+  const candidates=Object.entries(VERIFIED_RESULT_CODES).filter(([k])=>k.includes('|'+track+'|')&&Number(k.slice(0,4))<Number(date.slice(0,4))).slice(0,5);
+  const checks=await Promise.all(candidates.map(async ([key,code])=>{
+   try{
+    const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code),{signal:AbortSignal.timeout(6000)});
+    const html=response.ok?new TextDecoder('shift_jis').decode(await response.arrayBuffer()):'';
+    const race=html?parseOfficialLap(html,code,track,key.slice(0,10)):null;
+    return {key,status:response.status,hasLap:html.includes('ハロンタイム'),hasCourse:html.includes('コース'),parsed:!!race,distance:race?.distance||null};
+   }catch(e){return {key,error:String(e).slice(0,150)}}
+  }));
+  return respond({version:'2026-10-16-parser-v2',date,track,checks},200);
+ }
  if(path==='/historical-lap-averages'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
