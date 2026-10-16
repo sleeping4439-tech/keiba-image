@@ -229,13 +229,17 @@ async function renderLapPopup(){
    const difference=(value,baseline)=>{const delta=value-baseline;return (delta>0?'+':'')+delta.toFixed(2)+'秒'};
 
    if(!rows.length){const p=document.createElement('p');p.textContent='この開催時期の過去データはまだ取得できていません。';body.append(p);return}
+   for(const group of [{key:'lower',label:'未勝利〜3勝クラス'},{key:'open',label:'オープン以上（L・重賞含む）'}]){
+   const groupRows=rows.filter(r=>r.raceClass===group.key);
+   const heading=document.createElement('h3');heading.textContent=group.label;heading.style.cssText='font-size:15px;margin:16px 0 8px';body.append(heading);
+   if(!groupRows.length){const empty=document.createElement('p');empty.textContent='このクラスの集計対象レースはまだありません。';empty.style.cssText='font-size:12px;color:#687d70';body.append(empty);continue}
    const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap';
    const tableWrap=document.createElement('div');tableWrap.style.cssText='width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch';
    const head=document.createElement('tr');
    for(const title of ['芝・距離','平均勝ち時計','平均上がり3F','件数','当日勝ち時計差','当日上がり差']){const th=document.createElement('th');th.textContent=title;th.style.cssText='text-align:left;border-bottom:1px solid #dce6de;padding:6px 3px';head.append(th)}
    table.append(head);
    const fmt=seconds=>Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0');
-   for(const r of rows){
+   for(const r of groupRows){
     const tr=document.createElement('tr');
     const today=currentByDistance.get(r.distance)||[];
     const todayAverage=today.length?today.reduce((sum,race)=>sum+(Number(race.winningSeconds)||race.laps.reduce((a,b)=>a+b,0)),0)/today.length:null;
@@ -246,9 +250,11 @@ async function renderLapPopup(){
     table.append(tr);
    }
    tableWrap.append(table);body.append(tableWrap);
+   }
    const years=document.createElement('p');years.style.cssText='font-size:11px;color:#687d70';
-   years.textContent='取得できた年：'+(data.coveredYears||[]).join('・')+'年 / 対象5年間。馬場状態・クラス混合。当日との差はマイナス＝速い、プラス＝遅い。未開催・未取得は「—」。当日同距離が複数ある場合は平均。';
+   years.textContent='取得できた年：'+(data.coveredYears||[]).join('・')+'年 / 対象5年間。新馬・クラス不明は集計対象外。馬場状態は混合。当日との差はマイナス＝速い、プラス＝遅い。未開催・未取得は「—」。当日同距離が複数ある場合は平均。';
    body.append(years);
+   if(data.diagnostics){const d=data.diagnostics;const details=document.createElement('p');details.style.cssText='font-size:11px;color:#687d70';details.textContent='クラス判定済 '+(d.classified||0)+'件／新馬除外 '+(d.excludedNewcomer||0)+'件／判定不可 '+(d.unclassified||0)+'件';body.append(details)}
    return;
   }
   const rows=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length):[];
