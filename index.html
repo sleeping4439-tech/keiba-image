@@ -200,9 +200,39 @@ async function renderLapPopup(){
  }
  try{
   const endpoint=lapPeriod==='average'?'historical-lap-averages':'laps-by-day';
-  const response=await fetch('https://keiba-track-data.sleeping4439.workers.dev/'+endpoint+'?date='+encodeURIComponent(lapPeriod==='average'?selectedDate:date)+'&track='+encodeURIComponent(track),{signal:AbortSignal.timeout(18000)});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-  const data=await response.json();
+  const urlBase='https://keiba-track-data.sleeping4439.workers.dev/'+endpoint+'?date='+encodeURIComponent(lapPeriod==='average'?selectedDate:date)+'&track='+encodeURIComponent(track);
+  let data;
+  if(lapPeriod==='average'){
+   const targetYears=Array.from({length:5},(_,i)=>Number(selectedDate.slice(0,4))-i-1);
+   const results=await Promise.allSettled(targetYears.map(async year=>{
+    const response=await fetch(urlBase+'&year='+year,{signal:AbortSignal.timeout(25000)});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    return response.json();
+   }));
+   const merged=new Map(),coveredYears=new Set();
+   const diagnostics={seedCount:0,discovered:0,fetchSucceeded:0,parsed:0,classified:0,excludedNewcomer:0,unclassified:0};
+   const failedYears=[];
+   results.forEach((result,i)=>{
+    if(result.status!=='fulfilled'){failedYears.push(targetYears[i]);return}
+    const part=result.value;
+    for(const year of part.coveredYears||[])coveredYears.add(year);
+    for(const key of Object.keys(diagnostics))diagnostics[key]+=Number(part.diagnostics?.[key]||0);
+    for(const row of part.averages||[]){
+     const key=row.raceClass+'|'+row.surface+'|'+row.distance;
+     const previous=merged.get(key)||{raceClass:row.raceClass,surface:row.surface,distance:row.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
+     previous.count+=row.count;
+     previous.winningSum+=row.averageWinningSeconds*row.count;
+     previous.last3fSum+=row.averageLast3f*row.count;
+     for(const year of row.years||[])previous.years.add(year);
+     merged.set(key,previous);
+    }
+   });
+   data={complete:false,coveredYears:[...coveredYears].sort(),failedYears,diagnostics,averages:[...merged.values()].map(row=>({raceClass:row.raceClass,surface:row.surface,distance:row.distance,count:row.count,years:[...row.years].sort(),averageWinningSeconds:row.winningSum/row.count,averageLast3f:row.last3fSum/row.count})).sort((a,b)=>a.distance-b.distance)};
+  }else{
+   const response=await fetch(urlBase,{signal:AbortSignal.timeout(18000)});
+   if(!response.ok)throw new Error('HTTP '+response.status);
+   data=await response.json();
+  }
   if(requestId!==lapRequestId||!recordInfoDialog.open)return;
   if(lapPeriod==='average'){
    body.replaceChildren();
@@ -214,9 +244,10 @@ async function renderLapPopup(){
     const d=data.diagnostics;
     const status=document.createElement('p');
     status.style.cssText='font-size:12px;color:#687d70;margin:0 0 10px';
-    status.textContent='取得状況：登録URL '+d.seedCount+'件／公式リンク追加 '+(d.discovered||0)+'件／接続成功 '+d.fetchSucceeded+'件／芝ラップ解析成功 '+d.parsed+'件';
+    status.textContent='年度別取得：登録URL '+d.seedCount+'件／公式リンク追加 '+(d.discovered||0)+'件／接続成功 '+d.fetchSucceeded+'件／芝ラップ解析成功 '+d.parsed+'件';
     body.append(status);
    }
+   if(data.failedYears?.length){const warning=document.createElement('p');warning.style.cssText='font-size:12px;color:#9a5a24';warning.textContent='取得失敗した年：'+data.failedYears.join('・')+'年（再読み込みで再試行）';body.append(warning)}
    const rows=Array.isArray(data.averages)?data.averages.filter(r=>r.surface==='芝'):[];
    let currentRaces=[];
    try{
@@ -244,7 +275,7 @@ async function renderLapPopup(){
     const today=currentByDistance.get(r.distance)||[];
     const todayAverage=today.length?today.reduce((sum,race)=>sum+(Number(race.winningSeconds)||race.laps.reduce((a,b)=>a+b,0)),0)/today.length:null;
     const todayLast3f=today.length?today.reduce((sum,race)=>sum+(Number.isFinite(Number(race.last3f))?Number(race.last3f):race.laps.slice(-3).reduce((a,b)=>a+b,0)),0)/today.length:null;
-    for(const value of [r.surface+r.distance+'m',fmt(r.averageWinningSeconds),r.averageLast3f.toFixed(2)+'秒',r.count+'R',todayAverage===null?'—':difference(todayAverage,r.averageWinningSeconds),todayLast3f===null?'—':difference(todayLast3f,r.averageLast3f)]){
+    for(const value of [r.surface+r.distance+'m'+'（'+r.years.length+'/5年）',fmt(r.averageWinningSeconds),r.averageLast3f.toFixed(2)+'秒',r.count+'R',todayAverage===null?'—':difference(todayAverage,r.averageWinningSeconds),todayLast3f===null?'—':difference(todayLast3f,r.averageLast3f)]){
      const td=document.createElement('td');td.textContent=value;td.style.cssText='padding:7px 3px;border-bottom:1px solid #edf0ee';tr.append(td);
     }
     table.append(tr);
