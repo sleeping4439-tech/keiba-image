@@ -76,6 +76,15 @@ function resultCodesInHtml(html){
  }
  return [...codes];
 }
+function classifyJraRace(plain){
+ const header=plain.slice(0,Math.max(0,plain.indexOf('ハロンタイム')));
+ // Restrict classification to race heading/conditions, not other race links or result tables.
+ const segment=header.slice(Math.max(0,header.lastIndexOf('払戻')+2));
+ if(/新馬|メイクデビュー/.test(segment))return 'excluded';
+ if(/(?:未勝利|1勝クラス|2勝クラス|3勝クラス|500万下|1000万下|1600万下|五百万下|一千万下|千六百万下)/.test(segment))return 'lower';
+ if(/(?:オープン|ＯＰ|OP|リステッド|Listed|リステッド競走|重賞|Ｇ[ⅠⅡⅢ]|G[123ⅠⅡⅢ]|グレード[ⅠⅡⅢ]|\(L\)|（L）)/i.test(segment))return 'open';
+ return 'unknown';
+}
 function parseOfficialLap(html,code,track,date){
  const info=resultCodeInfo(code);
  if(!info||info.venue!==JRA_VENUES[track]||info.date!==date.replace(/-/g,''))return null;
@@ -102,7 +111,7 @@ function parseOfficialLap(html,code,track,date){
  // JRA's 上り3F is the race sectional, not the winning horse's own final 600m.
  const officialLast3f=plain.slice(at+6,at+540).match(/上り\s*(?:4F\s*[\d.]+\s*[-－ー−—–]\s*)?3F\s*(\d{2}\.\d)/);
  const last3f=officialLast3f?Number(officialLast3f[1]):Number(laps.slice(-3).reduce((a,b)=>a+b,0).toFixed(1));
- return {number:info.number,name:title.trim(),surface,distance,laps,winningSeconds,last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
+ return {number:info.number,name:title.trim(),raceClass:classifyJraRace(plain),surface,distance,laps,winningSeconds,last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
 }
 function parseJraEntries(html){
  const entries=[];
@@ -480,7 +489,7 @@ export default {async fetch(request){
    start.setUTCDate(start.getUTCDate()-364*years);
    dates.push(start.toISOString().slice(0,10));
   }
-  const groups=new Map(),coveredYears=new Set(),missing=[],diagnostics={seedCount:0,fetchSucceeded:0,parsed:0};
+  const groups=new Map(),coveredYears=new Set(),missing=[],diagnostics={seedCount:0,fetchSucceeded:0,parsed:0,classified:0,excludedNewcomer:0,unclassified:0};
   const work=new Map();
   for(const day of dates){
    const center=new Date(day+'T00:00:00Z');
@@ -496,9 +505,12 @@ export default {async fetch(request){
   const addRace=(race,year)=>{
    if(!race||race.surface!=='芝')return;
    diagnostics.parsed++;
+   if(race.raceClass==='excluded'){diagnostics.excludedNewcomer++;return}
+   if(race.raceClass!=='lower'&&race.raceClass!=='open'){diagnostics.unclassified++;return}
+   diagnostics.classified++;
    coveredYears.add(year);
-   const key=race.surface+'|'+race.distance;
-   const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
+   const key=race.raceClass+'|'+race.surface+'|'+race.distance;
+   const group=groups.get(key)||{raceClass:race.raceClass,surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
    group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(year);groups.set(key,group);
   };
   async function fetchBatch(items){
@@ -531,7 +543,7 @@ export default {async fetch(request){
   // Worker request budget: at most 48 official page requests in total.
   await fetchBatch([...work.values()].filter(item=>!processed.has(item.code)).slice(0,Math.max(0,48-processed.size)));
   diagnostics.totalRequested=processed.size;
-  const averages=[...groups.values()].map(g=>({surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
+  const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
   return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
  if(path==='/laps-by-day'){
