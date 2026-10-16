@@ -269,7 +269,8 @@ function clockSVG(){
        let count=idx===0?2:1;
        for(let j=0;j<count;j++){
          let xx=x+j*15;
-         const rightward=(state.track==='東京') === (y===430);
+         const leftHanded=(state.track==='東京'||state.track==='新潟'||state.track==='中京');
+         const rightward=leftHanded === (y===430);
          if(rightward)s+=`<path d="M${xx} ${y} l40 55 -40 55" fill="none" stroke="#b7e0bf" stroke-width="10" opacity=".55"/>`;
          else s+=`<path d="M${xx+40} ${y} l-40 55 40 55" fill="none" stroke="#b7e0bf" stroke-width="10" opacity=".55"/>`;
        }
