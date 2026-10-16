@@ -185,13 +185,14 @@ document.getElementById('recordInfoButton').addEventListener('click',async()=>{
   if(!response.ok)throw new Error('HTTP '+response.status);
   const data=await response.json();
   const rows=Array.isArray(data.races)?data.races.filter(r=>Array.isArray(r.laps)&&r.laps.length):[];
-  if(!rows.length){body.textContent='この日のラップはまだ取得できていません。公式結果ページの自動特定・取得機能は現在検証中です。';return}
+  if(!rows.length){body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。取得済みの開催日から順次対応します。':'この日のラップを取得できませんでした。JRA公式結果の掲載・取得状況を確認してください。';return}
   body.replaceChildren();
+  if(data.partial){const note=document.createElement('p');note.textContent='取得できたレースのみ表示しています（'+rows.length+'件）。';note.style.cssText='font-size:12px;color:#687d70';body.append(note)}
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
    const name=document.createElement('strong');name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m';
    const laps=document.createElement('div');laps.style.cssText='font-size:13px;overflow-wrap:anywhere';laps.textContent=race.laps.join(' - ');
-   block.append(name,laps);body.append(block);
+   const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';block.append(name,laps,source);body.append(block);
   }
  }catch(e){body.textContent='ラップ取得サービスへの接続ができませんでした。現在、自動取得機能を準備中です。'}
 });
