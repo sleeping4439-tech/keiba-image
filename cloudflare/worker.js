@@ -72,8 +72,12 @@ function parseOfficialLap(html,code,track,date){
  const distanceMatch=plain.match(/コース\s*[：:]?\s*([\d,，]+)\s*メートル\s*[（(]\s*(芝|ダート|障害)/);
  const distance=distanceMatch?Number(distanceMatch[1].replace(/[,，]/g,'')):null;
  if(!distance||laps.length!==Math.ceil(distance/200)||laps.some(x=>x<7||x>30))return null;
+ const winnerArea=plain.slice(0,at);
+ const winnerMatch=winnerArea.match(/(?:^|\s)1\s+[^\n]{0,240}?\s+(\d:[0-5]\d\.\d)\s/);
+ const winningSeconds=winnerMatch?Number(winnerMatch[1].split(':')[0])*60+Number(winnerMatch[1].split(':')[1]):laps.reduce((a,b)=>a+b,0);
+ const last3f=Number(laps.slice(-3).reduce((a,b)=>a+b,0).toFixed(1));
  const title=(plain.match(/(?:\d{1,2}レース)\s+(.{2,70}?)\s+(?:\d歳|障害|コース)/)||[])[1]||'';
- return {number:info.number,name:title.trim(),surface:distanceMatch[2],distance,laps,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
+ return {number:info.number,name:title.trim(),surface:distanceMatch[2],distance,laps,winningSeconds:Number(winningSeconds.toFixed(1)),last3f,sourceUrl:'https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code)};
 }
 function parseJraEntries(html){
  const entries=[];
@@ -427,6 +431,41 @@ export default {async fetch(request){
   return respond({checkedAt:new Date().toISOString(),results});
  }
  // Diagnostic-only lap discovery. No bulk crawl: one official page per request.
+ if(path==='/historical-lap-averages'){
+  const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
+  if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
+  const base=new Date(date+'T00:00:00Z');
+  const dates=[];
+  for(let years=1;years<=5;years++){
+   const start=new Date(base);
+   start.setUTCFullYear(start.getUTCFullYear()-years);
+   // Match the same weekday and approximate calendar week, allowing calendar drift.
+   const dayShift=(base.getUTCDay()-start.getUTCDay()+7)%7;
+   start.setUTCDate(start.getUTCDate()+dayShift);
+   dates.push(start.toISOString().slice(0,10));
+  }
+  const groups=new Map(),coveredYears=new Set(),missing=[];
+  await Promise.all(dates.map(async day=>{
+   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>key.startsWith(day+'|'+track+'|')).map(([,code])=>code);
+   if(!seeds.length){missing.push(day);return}
+   const races=await Promise.all(seeds.map(async code=>{
+    try{
+     const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(code),{signal:AbortSignal.timeout(8500)});
+     if(!response.ok)return null;
+     return parseOfficialLap(new TextDecoder('shift_jis').decode(await response.arrayBuffer()),code,track,day);
+    }catch(e){return null}
+   }));
+   for(const race of races.filter(Boolean)){
+    if(race.surface==='障害')continue;
+    coveredYears.add(day.slice(0,4));
+    const key=race.surface+'|'+race.distance;
+    const group=groups.get(key)||{surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
+    group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(day.slice(0,4));groups.set(key,group);
+   }
+  }));
+  const averages=[...groups.values()].map(g=>({surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
+  return new Response(JSON.stringify({date,track,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:coveredYears.size===5,missingDates:missing,averages,notice:'公式結果URLを確認できたレースのみ集計。5年分未収集の場合は参考値であり5年平均ではありません。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
+ }
  if(path==='/laps-by-day'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
