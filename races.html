@@ -94,7 +94,7 @@ function raceHeading(number,name,withArrow=false){
 let currentMemoKey='';
 function memoStorageKey(date,track,number){return 'keiba-race-memo:v1:'+date+'|'+track+'|'+number}
 $('raceMemo').addEventListener('input',()=>{if(!currentMemoKey)return;try{localStorage.setItem(currentMemoKey,$('raceMemo').value);$('memoStatus').textContent='この端末に保存済み';}catch(e){$('memoStatus').textContent='保存できませんでした';}});
-function openRace(date,track,race){activeFavoriteRace={date,track,number:race.number,name:race.name};updateDetailFavorite();resetComparison();currentMemoKey=memoStorageKey(date,track,race.number);try{$('raceMemo').value=localStorage.getItem(currentMemoKey)||'';$('memoStatus').textContent='入力内容はこの端末に自動保存されます';}catch(e){$('raceMemo').value='';$('memoStatus').textContent='この端末では保存できません';}$('raceList').hidden=true;$('detail').hidden=false;$('raceTitle').replaceChildren();const trackName=document.createElement('span');trackName.className='race-detail-track';trackName.textContent=track;$('raceTitle').append(trackName,raceHeading(race.number,race.name));$('entries').replaceChildren();const source=officialUrl(date,track,race.number);$('sourceInput').value=source;$('entryHint').textContent=source?'確認済みのJRA公式出馬表を使用します。':'JRA公式サイトの該当レースの出馬表URLを貼り付けてください。';loadAutoEntries(date,track,race.number,source);}
+function openRace(date,track,race){try{localStorage.setItem('keibaLastRaceViewV1',JSON.stringify({date,track,number:race.number,name:race.name}))}catch{}activeFavoriteRace={date,track,number:race.number,name:race.name};updateDetailFavorite();resetComparison();currentMemoKey=memoStorageKey(date,track,race.number);try{$('raceMemo').value=localStorage.getItem(currentMemoKey)||'';$('memoStatus').textContent='入力内容はこの端末に自動保存されます';}catch(e){$('raceMemo').value='';$('memoStatus').textContent='この端末では保存できません';}$('raceList').hidden=true;$('detail').hidden=false;$('raceTitle').replaceChildren();const trackName=document.createElement('span');trackName.className='race-detail-track';trackName.textContent=track;$('raceTitle').append(trackName,raceHeading(race.number,race.name));$('entries').replaceChildren();const source=officialUrl(date,track,race.number);$('sourceInput').value=source;$('entryHint').textContent=source?'確認済みのJRA公式出馬表を使用します。':'JRA公式サイトの該当レースの出馬表URLを貼り付けてください。';loadAutoEntries(date,track,race.number,source);}
 $('loadEntries').addEventListener('click',()=>loadEntries($('sourceInput').value.trim()));
 // Japan-local calendar dates, independent of the viewer's device timezone.
 const fmt=d=>(d.getMonth()+1)+'/'+d.getDate()+'（'+'日月火水木金土'[d.getDay()]+'）';
@@ -102,6 +102,11 @@ const iso=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.ge
 const japanToday=()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const get=k=>Number(parts.find(p=>p.type===k).value);return new Date(get('year'),get('month')-1,get('day'),12)};
 function saturdayOf(d){const x=new Date(d);x.setDate(x.getDate()+(x.getDay()===0?-1:(6-x.getDay()+7)%7));return x}
 let weekOffset=0,selectedDates=[],request=0,activeTrack='東京';
+const LAST_VIEW_KEY='keibaLastRaceViewV1';
+let restoreRace=null;
+try{const saved=JSON.parse(localStorage.getItem(LAST_VIEW_KEY)||'null');if(saved&&/^20\d{2}-\d{2}-\d{2}$/.test(saved.date)&&typeof saved.track==='string'&&Number.isInteger(Number(saved.number))&&Number(saved.number)>=1&&Number(saved.number)<=12)restoreRace=saved}catch{}
+function clearRestoredRace(){restoreRace=null;try{localStorage.removeItem(LAST_VIEW_KEY)}catch{}}
+
 const FAVORITE_KEY='keiba-race-favorites:2026-10-17-18';
 const FAVORITE_DATES=new Set(['2026-10-17','2026-10-18']);
 let activeFavoriteRace=null;
@@ -225,8 +230,21 @@ function showDay(d){
    b.addEventListener('click',()=>{activeTrack=track;renderTrack()});tabs.appendChild(b);
   }
   renderTrack();
+  if(restoreRace&&restoreRace.date===iso(d)){
+   const saved=restoreRace;restoreRace=null;
+   const match=data.races.find(x=>x.track===saved.track&&Number(x.number)===Number(saved.number));
+   if(match){activeTrack=saved.track;renderTrack();openRace(iso(d),saved.track,match)}
+   else{openRace(iso(d),saved.track,{number:Number(saved.number),name:saved.name||''})}
+  }
  }).catch(err=>{if(id===request){$('tracks').replaceChildren();const area=$('races');area.replaceChildren();const box=document.createElement('div');box.className='empty';box.textContent='取得エラー: '+(err.message||String(err))+'。通信制限や一時的な接続障害の可能性があります。';area.appendChild(box)}})
 }
-buildWeek();
-$('back').addEventListener('click',()=>{$('detail').hidden=true;$('raceList').hidden=false});
+if(restoreRace){
+ const raceDay=new Date(restoreRace.date+'T12:00:00');
+ const thisSaturday=saturdayOf(japanToday());
+ const savedSaturday=saturdayOf(raceDay);
+ weekOffset=Math.round((savedSaturday-thisSaturday)/604800000);
+ if(Math.abs(weekOffset)>52){clearRestoredRace();weekOffset=0}
+}
+buildWeek(restoreRace?.date||'');
+$('back').addEventListener('click',()=>{clearRestoredRace();$('detail').hidden=true;$('raceList').hidden=false});
 </script></body></html>
