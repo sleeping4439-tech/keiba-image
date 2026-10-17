@@ -517,8 +517,8 @@ export default {async fetch(request){
    diagnostics.classified++;
    coveredYears.add(year);
    const key=race.raceClass+'|'+race.surface+'|'+race.distance;
-   const group=groups.get(key)||{raceClass:race.raceClass,surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,years:new Set()};
-   group.count++;group.winningSum+=race.winningSeconds;group.last3fSum+=race.last3f;group.years.add(year);groups.set(key,group);
+   const group=groups.get(key)||{raceClass:race.raceClass,surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,minWinningSeconds:Infinity,years:new Set()};
+   group.count++;group.winningSum+=race.winningSeconds;group.minWinningSeconds=Math.min(group.minWinningSeconds,race.winningSeconds);group.last3fSum+=race.last3f;group.years.add(year);groups.set(key,group);
   };
   async function fetchBatch(items){
    let next=0;
@@ -550,7 +550,7 @@ export default {async fetch(request){
   // Worker request budget: at most 48 official page requests in total.
   await fetchBatch([...work.values()].filter(item=>!processed.has(item.code)).slice(0,Math.max(0,48-processed.size)));
   diagnostics.totalRequested=processed.size;
-  const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
+  const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),minWinningSeconds:Number(g.minWinningSeconds.toFixed(1)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
   return new Response(JSON.stringify({date,track,requestedYear:requestedYear||null,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
  }
  if(path==='/laps-by-day'){
