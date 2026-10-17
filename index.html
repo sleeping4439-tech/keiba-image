@@ -323,11 +323,11 @@ async function renderLapPopup(forceRefresh=false){
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
    const name=document.createElement('strong');const seconds=Number(race.winningSeconds);const winning=Number.isFinite(seconds)&&seconds>0?Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0'):'—';name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m　勝ち時計 '+winning+'（'+(Number.isFinite(Number(race.last3f))&&Number(race.last3f)>0?Number(race.last3f).toFixed(1):'—')+'）';
-   const laps=document.createElement('div');laps.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:9px 0;font-variant-numeric:tabular-nums';
+   const laps=document.createElement('div');laps.style.cssText='display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0;font-variant-numeric:tabular-nums;white-space:nowrap';
    let cumulative=0;
    race.laps.forEach((lap,i)=>{
     cumulative=Math.round((cumulative+Number(lap))*10)/10;
-    const cell=document.createElement('div');cell.style.cssText='text-align:center;padding:2px 0';
+    const cell=document.createElement('div');cell.style.cssText='flex:0 0 auto;min-width:39px;text-align:center;padding:2px 0';
     const total=document.createElement('div');total.textContent=formatLapSeconds(cumulative);total.style.cssText='font-size:14px;font-weight:700;line-height:1.35';
     const split=document.createElement('div');split.textContent=Number(lap).toFixed(1);split.style.cssText='font-size:12px;color:#65756b;line-height:1.35';
     cell.append(total,split);laps.append(cell);
