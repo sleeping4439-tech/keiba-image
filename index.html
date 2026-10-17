@@ -184,6 +184,23 @@ function lapReferenceDate(date){
  d.setUTCDate(d.getUTCDate()-364);
  return d.toISOString().slice(0,10);
 }
+// Preserve successfully fetched official lap data per race and meeting in this browser.
+const LAP_ARCHIVE_KEY='yubaba-official-laps-v1';
+function readLapArchive(){try{const v=JSON.parse(localStorage.getItem(LAP_ARCHIVE_KEY)||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{}}catch(e){return {}}}
+function archiveLapRaces(track,date,races){
+ if(!Array.isArray(races)||!races.length)return;
+ try{
+  const archive=readLapArchive(),key=date+'|'+track,prior=archive[key]||{};
+  for(const race of races){
+   if(race.surface!=='芝'||!Number.isInteger(Number(race.number))||!Array.isArray(race.laps)||!race.laps.length)continue;
+   prior[String(race.number)]={number:race.number,name:race.name||'',surface:'芝',distance:race.distance,laps:race.laps,winningSeconds:race.winningSeconds,last3f:race.last3f,sourceUrl:race.sourceUrl};
+  }
+  archive[key]=prior;
+  localStorage.setItem(LAP_ARCHIVE_KEY,JSON.stringify(archive));
+ }catch(e){console.warn('ラップ履歴の端末保存に失敗しました',e)}
+}
+function cachedLapRaces(track,date){return Object.values(readLapArchive()[date+'|'+track]||{})}
+function formatLapSeconds(seconds){const value=Number(seconds);return value>=60?Math.floor(value/60)+':'+(value%60).toFixed(1).padStart(4,'0'):value.toFixed(1)}
 async function renderLapPopup(forceRefresh=false){
  const requestId=++lapRequestId;
  const track=state.track;
@@ -289,20 +306,33 @@ async function renderLapPopup(forceRefresh=false){
    if(data.diagnostics){const d=data.diagnostics;const details=document.createElement('p');details.style.cssText='font-size:11px;color:#687d70';details.textContent='クラス判定済 '+(d.classified||0)+'件／新馬除外 '+(d.excludedNewcomer||0)+'件／判定不可 '+(d.unclassified||0)+'件';body.append(details)}
    return;
   }
-  const rows=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length).sort((a,b)=>Number(b.number)-Number(a.number)):[];
+  const fetched=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length):[];
+  archiveLapRaces(track,date,fetched);
+  const combined=new Map(cachedLapRaces(track,date).map(r=>[String(r.number),r]));
+  for(const race of fetched)combined.set(String(race.number),race);
+  const rows=[...combined.values()].sort((a,b)=>Number(b.number)-Number(a.number));
   if(!rows.length){
    body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。':'この日のラップを取得できませんでした。公式結果の取得状況を確認してください。';
    return;
   }
   body.replaceChildren();
   const note=document.createElement('p');
-  note.textContent='JRA公式結果から取得：'+rows.length+'レース'+(data.partial?'（取得できた分のみ）':'');
+  note.textContent='JRA公式結果・端末保存済み：'+rows.length+'レース'+(data.partial?'（取得できた分のみ）':'');
   note.style.cssText='font-size:12px;color:#687d70;margin:0 0 8px';
   body.append(note);
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
    const name=document.createElement('strong');const seconds=Number(race.winningSeconds);const winning=Number.isFinite(seconds)&&seconds>0?Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0'):'—';name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m　勝ち時計 '+winning+'（'+(Number.isFinite(Number(race.last3f))&&Number(race.last3f)>0?Number(race.last3f).toFixed(1):'—')+'）';
-   const laps=document.createElement('div');laps.style.cssText='font-size:13px;overflow-wrap:anywhere';laps.textContent=race.laps.join(' - ');
+   const laps=document.createElement('div');laps.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:9px 0;font-variant-numeric:tabular-nums';
+   let cumulative=0;
+   race.laps.forEach((lap,i)=>{
+    cumulative=Math.round((cumulative+Number(lap))*10)/10;
+    const cell=document.createElement('div');cell.style.cssText='border:1px solid #e3eae4;border-radius:6px;overflow:hidden;text-align:center';
+    const distance=document.createElement('div');distance.textContent=(i+1)*200+'m';distance.style.cssText='background:#edf2ee;font-size:11px;font-weight:700;padding:2px';
+    const total=document.createElement('div');total.textContent=formatLapSeconds(cumulative);total.style.cssText='font-size:14px;font-weight:700;padding:4px 2px 0';
+    const split=document.createElement('div');split.textContent=Number(lap).toFixed(1);split.style.cssText='font-size:12px;color:#65756b;padding:0 2px 4px';
+    cell.append(distance,total,split);laps.append(cell);
+   });
    const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';
    block.append(name,laps,source);body.append(block);
   }
