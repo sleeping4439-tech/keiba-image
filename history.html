@@ -8,7 +8,7 @@
 <section id="auth" class="card hidden"><h2>本人確認</h2><p class="muted">履歴を閲覧・編集するにはGoogleアカウントでログインしてください。</p><button class="primary" id="login">Googleでログイン</button></section>
 <section id="app" class="hidden"><div class="row"><span id="userLabel" class="muted"></span><button id="logout">ログアウト</button></div>
 <section class="card"><h2>保存済みの履歴</h2><p class="muted">この一覧にはログインした本人の記録だけが表示されます。</p><div class="row"><button id="reload">更新</button><span id="count" class="muted"></span></div><div id="list"></div></section>
-<section class="card"><h2 id="editorTitle">履歴を編集</h2><div class="grid"><div><label for="date">日付</label><input type="date" id="date"></div><div><label for="track">競馬場</label><select id="track"><option>札幌</option><option>函館</option><option>福島</option><option>新潟</option><option>東京</option><option>中山</option><option>中京</option><option>京都</option><option>阪神</option><option>小倉</option></select></div><div><label for="condition">馬場状態（JRA）</label><input id="condition" readonly placeholder="取得データ未登録"></div><div><label for="cushion">クッション値（JRA）</label><input id="cushion" readonly placeholder="取得データ未登録"></div><div><label for="moistureFinish">含水率 G前（JRA）</label><input id="moistureFinish" readonly placeholder="取得データ未登録"></div><div><label for="moistureCorner">含水率 4角（JRA）</label><input id="moistureCorner" readonly placeholder="取得データ未登録"></div><div><label for="clock">時計レベル</label><select id="clock"><option value="">未設定</option></select></div></div>
+<section class="card"><h2>当日ラップ履歴</h2><p class="muted">ゆ馬場で取得した芝レースのラップを日付・競馬場ごとに表示します（この端末の保存分）。</p><div class="row"><button type="button" id="lapHistoryReload">更新</button><span id="lapHistoryCount" class="muted"></span></div><div id="lapHistoryList"></div></section><section class="card"><h2 id="editorTitle">履歴を編集</h2><div class="grid"><div><label for="date">日付</label><input type="date" id="date"></div><div><label for="track">競馬場</label><select id="track"><option>札幌</option><option>函館</option><option>福島</option><option>新潟</option><option>東京</option><option>中山</option><option>中京</option><option>京都</option><option>阪神</option><option>小倉</option></select></div><div><label for="condition">馬場状態（JRA）</label><input id="condition" readonly placeholder="取得データ未登録"></div><div><label for="cushion">クッション値（JRA）</label><input id="cushion" readonly placeholder="取得データ未登録"></div><div><label for="moistureFinish">含水率 G前（JRA）</label><input id="moistureFinish" readonly placeholder="取得データ未登録"></div><div><label for="moistureCorner">含水率 4角（JRA）</label><input id="moistureCorner" readonly placeholder="取得データ未登録"></div><div><label for="clock">時計レベル</label><select id="clock"><option value="">未設定</option></select></div></div>
 <label for="analysis">分析メモ</label><textarea id="analysis" placeholder="馬場傾向・修正した理由など"></textarea>
 <h3>コース図の状態</h3><p class="muted">色分け・直線グリップをこの画面で編集して保存できます。保存後も再編集できます。</p><div class="coursePreview"><svg id="savedCourse" viewBox="0 0 1000 650" role="img" aria-label="保存する芝コースの負荷・グリップ図"><rect width="1000" height="650" rx="14" fill="#f8fbf7"/><g id="savedCourseLines"></g><g id="savedCourseGrips"></g><text x="500" y="325" text-anchor="middle" fill="#2e6247" font-size="26" font-weight="bold" id="courseCaption">東京</text></svg></div><div id="courseTools" class="courseTools"></div><p class="courseHint">負荷：なし（緑）／軽／やや軽／中／強（赤）。各区間の内・中・外を個別に指定できます。</p><div class="gripControls" id="gripControls"></div><div class="courseActions"><button id="importCurrent" type="button">現在のゆ馬場の設定を取り込む</button><button id="applyMain" type="button">この履歴をゆ馬場に反映する</button></div><p class="courseHint">「取り込む」はこの端末の現在の設定を編集欄へ読み込みます。「反映する」はこの履歴の設定をメイン画面に適用します（同じブラウザのみ）。</p><label for="settings">保存する負荷・グリップのJSON（確認用）</label><textarea id="settings" readonly></textarea>
 <p class="muted">JRAの測定値は参照用です。分析内容のみ編集できます。既存のメイン画面との自動同期は次の段階で接続します。</p>
@@ -25,6 +25,30 @@ $('date').value=new Date().toLocaleDateString('sv-SE');
 if(!configured){$('setup').classList.remove('hidden');}else{
 const db=createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let user=null, records=[];
+function renderLapHistory(){
+ const root=$('lapHistoryList');root.replaceChildren();
+ let archive={};try{archive=JSON.parse(localStorage.getItem('yubaba-official-laps-v1')||'{}')||{}}catch(e){}
+ const keys=Object.keys(archive).filter(k=>Object.values(archive[k]||{}).length).sort((a,b)=>b.localeCompare(a));
+ $('lapHistoryCount').textContent=keys.length+'開催日・競馬場';
+ if(!keys.length){root.textContent='この端末に保存済みのラップはありません。ゆ馬場の当日ラップを開いて取得してください。';return}
+ const clock=v=>{const n=Number(v);return Number.isFinite(n)?n>=60?Math.floor(n/60)+':'+(n%60).toFixed(1).padStart(4,'0'):n.toFixed(1):'—'};
+ for(const key of keys){
+  const details=document.createElement('details');details.style.cssText='border-top:1px solid #e2eae4;padding:10px 0';
+  const summary=document.createElement('summary');summary.style.cssText='font-weight:700;cursor:pointer';
+  const races=Object.values(archive[key]).filter(r=>r&&Array.isArray(r.laps)).sort((a,b)=>Number(b.number)-Number(a.number));
+  summary.textContent=key.replace('|','｜')+'（'+races.length+'R）';details.append(summary);
+  for(const race of races){
+   const block=document.createElement('div');block.style.cssText='padding:9px 0;border-bottom:1px solid #edf0ee';
+   const title=document.createElement('div');title.style.cssText='font-size:13px;font-weight:700';title.textContent=race.number+'R '+(race.name||'')+' 芝'+race.distance+'m　'+clock(race.winningSeconds)+'（'+clock(race.last3f)+'）';
+   const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;overflow-x:auto;white-space:nowrap;margin-top:5px;font-variant-numeric:tabular-nums';
+   let total=0;for(const lap of race.laps){total=Math.round((total+Number(lap))*10)/10;const cell=document.createElement('div');cell.style.cssText='min-width:39px;text-align:center;flex-shrink:0';const cum=document.createElement('div');cum.style.cssText='font-weight:700;font-size:13px';cum.textContent=clock(total);const split=document.createElement('div');split.style.cssText='font-size:12px;color:#708075';split.textContent=Number(lap).toFixed(1);cell.append(cum,split);row.append(cell)}
+   block.append(title,row);details.append(block);
+  }
+  root.append(details);
+ }
+}
+$('lapHistoryReload').onclick=renderLapHistory;
+
 function msg(t,err=false){$('status').textContent=t;$('status').classList.toggle('error',err)}
 
 // Editable diagram state: the same segments, lane order, and colors as index.html.
@@ -72,7 +96,7 @@ function updateOfficialFields(){
 for(const id of ['date','track'])$(id).addEventListener('change',()=>{for(const k of ['condition','cushion','moistureFinish','moistureCorner'])$(k).value='';updateOfficialFields()});
 function fill(r){$('date').value=r?.race_date||new Date().toLocaleDateString('sv-SE');$('track').value=r?.track||'東京';const j=r?.jra_data||{};for(const k of ['condition','cushion','moistureFinish','moistureCorner'])$(k).value=j[k]??'';$('clock').value=r?.analysis?.clock||'';$('analysis').value=r?.analysis?.memo||'';setDiagram(r?.analysis?.loadBySegment,r?.analysis?.grip);updateOfficialFields();msg('');}
 async function load(){const {data,error}=await db.from('track_records').select('*').order('race_date',{ascending:false}).limit(500);if(error){msg('履歴を読み込めません: '+error.message,true);return}records=data||[];$('count').textContent=records.length+'件';$('list').replaceChildren();for(const r of records){const b=document.createElement('button');b.className='record';b.textContent=r.race_date+'｜'+r.track+'｜'+(r.analysis?.clock||'未設定')+(r.jra_data?.condition?'｜'+r.jra_data.condition:'');b.onclick=()=>{fill(r);$('editorTitle').scrollIntoView({behavior:'smooth',block:'start'})};$('list').append(b)}if(!records.length)$('list').textContent='保存済みの履歴はまだありません。'}
-async function sync(session){user=session?.user||null;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);if(user){$('userLabel').textContent=user.email||'ログイン中';await load();} }
+async function sync(session){user=session?.user||null;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);if(user){$('userLabel').textContent=user.email||'ログイン中';await load();renderLapHistory();} }
 $('login').onclick=async()=>{const {error}=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)alert(error.message)};
 $('logout').onclick=async()=>{await db.auth.signOut();await sync(null)};
 $('reload').onclick=load;
