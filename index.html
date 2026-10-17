@@ -289,7 +289,7 @@ async function renderLapPopup(forceRefresh=false){
    if(data.diagnostics){const d=data.diagnostics;const details=document.createElement('p');details.style.cssText='font-size:11px;color:#687d70';details.textContent='クラス判定済 '+(d.classified||0)+'件／新馬除外 '+(d.excludedNewcomer||0)+'件／判定不可 '+(d.unclassified||0)+'件';body.append(details)}
    return;
   }
-  const rows=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length):[];
+  const rows=Array.isArray(data.races)?data.races.filter(r=>r.surface==='芝'&&Array.isArray(r.laps)&&r.laps.length).sort((a,b)=>Number(b.number)-Number(a.number)):[];
   if(!rows.length){
    body.textContent=data.reason==='result_urls_not_discovered'?'この開催日の公式結果URLはまだ特定できていません。':'この日のラップを取得できませんでした。公式結果の取得状況を確認してください。';
    return;
