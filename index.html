@@ -300,7 +300,7 @@ async function renderLapPopup(forceRefresh=false){
   body.append(note);
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
-   const name=document.createElement('strong');const seconds=Number(race.winningSeconds);const winning=Number.isFinite(seconds)&&seconds>0?Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0'):'—';name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m　勝ち時計 '+winning+'（上がり3F '+(Number.isFinite(Number(race.last3f))&&Number(race.last3f)>0?Number(race.last3f).toFixed(1):'—')+'）';
+   const name=document.createElement('strong');const seconds=Number(race.winningSeconds);const winning=Number.isFinite(seconds)&&seconds>0?Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0'):'—';name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m　勝ち時計 '+winning+'（'+(Number.isFinite(Number(race.last3f))&&Number(race.last3f)>0?Number(race.last3f).toFixed(1):'—')+'）';
    const laps=document.createElement('div');laps.style.cssText='font-size:13px;overflow-wrap:anywhere';laps.textContent=race.laps.join(' - ');
    const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';
    block.append(name,laps,source);body.append(block);
