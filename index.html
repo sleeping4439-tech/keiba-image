@@ -327,11 +327,10 @@ async function renderLapPopup(forceRefresh=false){
    let cumulative=0;
    race.laps.forEach((lap,i)=>{
     cumulative=Math.round((cumulative+Number(lap))*10)/10;
-    const cell=document.createElement('div');cell.style.cssText='border:1px solid #e3eae4;border-radius:6px;overflow:hidden;text-align:center';
-    const distance=document.createElement('div');distance.textContent=(i+1)*200+'m';distance.style.cssText='background:#edf2ee;font-size:11px;font-weight:700;padding:2px';
-    const total=document.createElement('div');total.textContent=formatLapSeconds(cumulative);total.style.cssText='font-size:14px;font-weight:700;padding:4px 2px 0';
-    const split=document.createElement('div');split.textContent=Number(lap).toFixed(1);split.style.cssText='font-size:12px;color:#65756b;padding:0 2px 4px';
-    cell.append(distance,total,split);laps.append(cell);
+    const cell=document.createElement('div');cell.style.cssText='text-align:center;padding:2px 0';
+    const total=document.createElement('div');total.textContent=formatLapSeconds(cumulative);total.style.cssText='font-size:14px;font-weight:700;line-height:1.35';
+    const split=document.createElement('div');split.textContent=Number(lap).toFixed(1);split.style.cssText='font-size:12px;color:#65756b;line-height:1.35';
+    cell.append(total,split);laps.append(cell);
    });
    const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';
    block.append(name,laps,source);body.append(block);
