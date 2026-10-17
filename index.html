@@ -170,7 +170,7 @@
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">なし</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
 <div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><div class="memo-footer"><small>この端末・ブラウザに自動保存されます</small><a class="memo-history-link" href="./history.html">馬場履歴 →</a></div><div class="memo-nav-buttons"><a href="./races.html">レース一覧 →</a><a href="./yubaroku/">ゆ馬録 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
-<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="average" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">過去5年平均</button></div><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
+<dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="average" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">過去5年平均</button></div><button type="button" id="lapRefresh" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:6px 12px;margin:0 0 12px;font-weight:700;cursor:pointer">↻ 更新</button><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
 <script>
 const levels=['超高速','高速','標準','やや遅','遅'];
 const recordInfoDialog=document.getElementById('recordInfoDialog');
@@ -184,7 +184,7 @@ function lapReferenceDate(date){
  d.setUTCDate(d.getUTCDate()-364);
  return d.toISOString().slice(0,10);
 }
-async function renderLapPopup(){
+async function renderLapPopup(forceRefresh=false){
  const requestId=++lapRequestId;
  const track=state.track;
  const selectedDate=memoDateByTrack[track]||localDate();
@@ -200,7 +200,7 @@ async function renderLapPopup(){
  }
  try{
   const endpoint=lapPeriod==='average'?'historical-lap-averages':'laps-by-day';
-  const urlBase='https://keiba-track-data.sleeping4439.workers.dev/'+endpoint+'?date='+encodeURIComponent(lapPeriod==='average'?selectedDate:date)+'&track='+encodeURIComponent(track);
+  const urlBase='https://keiba-track-data.sleeping4439.workers.dev/'+endpoint+'?date='+encodeURIComponent(lapPeriod==='average'?selectedDate:date)+'&track='+encodeURIComponent(track)+(forceRefresh?'&_refresh='+Date.now():'');
   let data;
   if(lapPeriod==='average'){
    const targetYears=Array.from({length:5},(_,i)=>Number(selectedDate.slice(0,4))-i-1);
@@ -300,7 +300,7 @@ async function renderLapPopup(){
   body.append(note);
   for(const race of rows){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-bottom:1px solid #e3eae4';
-   const name=document.createElement('strong');name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m';
+   const name=document.createElement('strong');const seconds=Number(race.winningSeconds);const winning=Number.isFinite(seconds)&&seconds>0?Math.floor(seconds/60)+':'+(seconds%60).toFixed(1).padStart(4,'0'):'—';name.textContent=race.number+'R '+(race.name||'')+' '+(race.surface||'')+(race.distance||'')+'m　勝ち時計 '+winning;
    const laps=document.createElement('div');laps.style.cssText='font-size:13px;overflow-wrap:anywhere';laps.textContent=race.laps.join(' - ');
    const source=document.createElement('a');source.href=race.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='JRA公式結果 ↗';source.style.cssText='font-size:12px;color:#38744f';
    block.append(name,laps,source);body.append(block);
@@ -318,6 +318,7 @@ document.querySelectorAll('#lapPeriodTabs button').forEach(button=>button.addEve
  lapPeriod=button.dataset.lapPeriod;
  renderLapPopup();
 }));
+document.getElementById('lapRefresh').addEventListener('click',()=>renderLapPopup(true));
 document.getElementById('recordInfoClose').addEventListener('click',()=>recordInfoDialog.close());
 const ALL_JRA_TRACKS=['東京','京都','新潟','札幌','函館','福島','中山','中京','阪神','小倉'];
 const state={track:'東京',clockByTrack:{'東京':'超高速','京都':'超高速'},segment:'道中',loadByTrack:{'東京':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]},'京都':{'道中':[0,0,0],'4角':[0,0,0],'直線':[0,0,0]}},gripByTrack:{'東京':[false,false,false],'京都':[false,false,false]}};
