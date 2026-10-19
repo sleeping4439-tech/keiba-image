@@ -1,0 +1,30 @@
+name: Build iOS home screen icons
+on:
+  push:
+    paths:
+      - 'icons/yubaba.svg'
+      - 'yubaroku/icon.svg'
+      - '.github/workflows/build-icons.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install cairosvg
+      - run: |
+          python - <<'PY'
+          import cairosvg
+          cairosvg.svg2png(url='icons/yubaba.svg',write_to='icons/apple-touch-icon.png',output_width=180,output_height=180)
+          cairosvg.svg2png(url='yubaroku/icon.svg',write_to='yubaroku/apple-touch-icon.png',output_width=180,output_height=180)
+          PY
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add icons/apple-touch-icon.png yubaroku/apple-touch-icon.png
+          git diff --cached --quiet || (git commit -m "Generate iOS PNG icons" && git push)
