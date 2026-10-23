@@ -206,8 +206,13 @@ function showDay(d){
    area.appendChild(err);return;
   }
   if(!data.backup){try{localStorage.setItem('keibaRaceCache:'+iso(d),JSON.stringify(data))}catch{}}
-  const normalizeTrack=v=>{const t=String(v||'').replace(/\s+/g,'').replace(/競馬場$/,'');return (t.match(/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/)||[])[0]||t};
-  const available=[...new Set(data.races.map(x=>normalizeTrack(x.track)).filter(Boolean))];
+  const normalizeTrack=v=>{const t=String(v??'').replace(/\\s+/g,'').replace(/競馬場$/,'');return (t.match(/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/)||[])[0]||''};
+  const trackFields=['track','venue','place','course','trackName','venueName','racecourse','raceCourse','jyo','競馬場','場名','場所'];
+  const readTrack=x=>{if(!x||typeof x!=='object')return '';for(const k of trackFields){const v=x[k];if(typeof v==='string'){const t=normalizeTrack(v);if(t)return t}}return ''};
+  const normalized=data.races.map(x=>({...x,track:readTrack(x)}));
+  const available=[...new Set(normalized.map(x=>x.track).filter(Boolean))];
+  if(!available.length){const sample=data.races[0];const keys=sample&&typeof sample==='object'?Object.keys(sample).slice(0,20).join(', '):typeof sample;const box=document.createElement('div');box.className='empty';box.textContent='レース情報は受信しましたが、競馬場を識別できません。受信データの項目: '+keys+'。このメッセージをお知らせください。';area.appendChild(box);return;}
+  data={...data,races:normalized};
   if(!available.includes(activeTrack))activeTrack=available[0];
   const tabs=$('tracks');tabs.replaceChildren();
   function renderTrack(){
