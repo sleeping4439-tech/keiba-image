@@ -71,7 +71,7 @@ async function initCloudAuth(){if(!validateCloudConfig(cloudCfg)){stateText('ク
  cloudClient=createClient(cloudCfg.url,cloudCfg.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce',storageKey:'yubaroku-google-auth-v1'}});
  const {data,error}=await cloudClient.auth.getSession();if(error)throw error;
  cloudSession=data.session;
- if(cloudSession){cloudRevision=null;stateText('Googleログイン済み・「クラウドから読込」を押してください');if(linkedHorseName()&&!findLinkedHorse()&&horses.length===0)queueMicrotask(()=>cloudLoad())}else stateText('未ログイン・「クラウド接続」からGoogleでログインしてください');
+ if(cloudSession){cloudRevision=null;stateText('Googleログイン済み・「クラウドから読込」を押してください');if(linkedHorseName()&&!findLinkedHorse())queueMicrotask(()=>loadLinkedHorseFromCloud())}else stateText('未ログイン・「クラウド接続」からGoogleでログインしてください');
  cloudClient.auth.onAuthStateChange((event,session)=>{const prev=cloudSession?.user?.id;cloudSession=session;if(prev!==session?.user?.id){cloudRevision=null;cloudReady=false}if(event==='SIGNED_OUT'){cloudReady=false;stateText('ログアウトしました')}else if(event==='SIGNED_IN')stateText('Googleログイン済み・「クラウドから読込」を押してください')});
  }catch(e){stateText('認証初期化エラー：'+e.message,true)}}
 async function ensureSession(){if(!cloudClient)throw Error('認証の初期化が完了していません');const {data,error}=await cloudClient.auth.getSession();if(error)throw error;cloudSession=data.session;if(!cloudSession?.user?.id)throw Error('Googleログインが必要です')}
@@ -81,6 +81,23 @@ function findLinkedHorse(){const name=linkedHorseName();const normalize=s=>Strin
 function applyLinkedHorse(){const name=linkedHorseName();if(!name)return;const horse=findLinkedHorse();if(horse){if(active!==horse.id)openHorse(horse.id);const notice=$('profileStatus');if(notice&&!cloudReady)notice.textContent='出馬表から「'+name+'」を開きました（ローカル保存データ）';}else{if(active!==null)showHome();$('search').value=name;renderList();const notice=$('cloudStatus');if(notice)notice.textContent='「'+name+'」は現在のデータに見つかりません。クラウドに保存している場合はGoogleログイン後「クラウドから読込」を押してください。';}}
 function syncView(){if(linkedHorseName()){applyLinkedHorse();return}if(active&&!horses.some(h=>h.id===active))showHome();else if(active){$('horseName').value=current().name;$('memo').value=current().memo;renderProfile()}else renderList()}
 async function fetchCloud(){await ensureSession();const {body}=await cloudRequest('/rest/v1/yubaroku_store?select=revision,data&owner_id=eq.'+encodeURIComponent(cloudSession.user.id)+'&limit=1',{method:'GET'});return Array.isArray(body)&&body.length?body[0]:null}
+async function loadLinkedHorseFromCloud(){
+ // Read only: never replace the user's local draft merely to follow a race-entry link.
+ if(cloudBusy||!linkedHorseName()||findLinkedHorse())return;
+ try{
+  const row=await fetchCloud();
+  const remote=validHorses(row?.data?.horses||[]);
+  const normalized=s=>String(s||'').normalize('NFKC').replace(/[\\s\\u3000]+/g,'').trim();
+  const match=remote.find(h=>normalized(h.name)===normalized(linkedHorseName()));
+  if(!match){stateText('クラウドにも「'+linkedHorseName()+'」の登録はありません');return}
+  const existing=horses.find(h=>h.id===match.id);
+  if(existing){if(normalized(existing.name)===normalized(match.name)){openHorse(existing.id);return}stateText('同じIDの別データが端末にあります。クラウドから読込で確認してください',true);return}
+  horses.push(match);
+  originalDraftSave();
+  openHorse(match.id);
+  stateText('クラウドの登録馬「'+match.name+'」を開きました（ほかの馬のデータは維持）');
+ }catch(e){stateText('登録馬の照合に失敗：'+e.message,true)}
+}
 async function cloudLoad(){if(cloudBusy)return;cloudBusy=true;stateText('クラウドから読込中…');try{const row=await fetchCloud();const remote=validHorses(row?.data?.horses||[]);if(JSON.stringify(horses)!==JSON.stringify(remote)&&horses.length&&!confirm('クラウドの'+remote.length+'頭を読み込み、現在のローカル下書き（'+horses.length+'頭）を置き換えます。未保存の変更は失われます。続けますか？')){stateText('読み込みをキャンセルしました');return}horses=remote;cloudRevision=row?.revision??null;cloudReady=true;originalDraftSave();savedSnapshot=JSON.stringify(horses);syncView();stateText('クラウド読込済み・保存済み（'+horses.length+'頭）')}catch(e){stateText('読込失敗：'+e.message,true)}finally{cloudBusy=false}}
 async function cloudSave(){
  if(cloudBusy)return;
