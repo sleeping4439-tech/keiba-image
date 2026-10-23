@@ -174,7 +174,7 @@ function backupRaceData(date){
  const tracks=VERIFIED_RACE_BACKUP[date];if(!tracks)return null;
  return {date,available:true,sourceUrl:'https://jra.jp/keiba/calendar2026/2026/10/1012.html',backup:true,races:Object.entries(tracks).flatMap(([track,names])=>names.map((name,i)=>({track,number:i+1,name})))};
 }
-function cachedRaceData(date){try{const d=JSON.parse(localStorage.getItem('keibaRaceCache:'+date)||'null');return d&&Array.isArray(d.races)&&d.races.length?d:null}catch{return null}}
+function cachedRaceData(date){try{const d=JSON.parse(localStorage.getItem('keibaRaceCache:'+date)||'null');return d&&Array.isArray(d.races)&&d.races.some(x=>typeof x.track==='string'&&/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/.test(x.track))?d:null}catch{return null}}
 function rescueRaceData(date){return cachedRaceData(date)||backupRaceData(date)}
 function normalizeRaceGrade(text){
  return String(text||'')
@@ -212,7 +212,7 @@ function showDay(d){
   const readTrack=x=>{if(!x||typeof x!=='object')return '';for(const k of trackFields){const v=x[k];if(typeof v==='string'){const t=normalizeTrack(v);if(t)return t}}return ''};
   const normalized=data.races.map(x=>({...x,track:readTrack(x)}));
   const available=[...new Set(normalized.map(x=>x.track).filter(Boolean))];
-  if(!available.length){const sample=data.races[0];const keys=sample&&typeof sample==='object'?Object.keys(sample).slice(0,20).join(', '):typeof sample;const box=document.createElement('div');box.className='empty';box.textContent='レース情報は受信しましたが、競馬場を識別できません。受信データの項目: '+keys+'。このメッセージをお知らせください。';area.appendChild(box);return;}
+  if(!available.length){const sample=data.races[0];const keys=sample&&typeof sample==='object'?Object.keys(sample).slice(0,20).join(', '):typeof sample;const values=data.races.slice(0,4).map(x=>({track:x.track,number:x.number,name:String(x.name||'').slice(0,60)}));const box=document.createElement('div');box.className='empty';box.textContent='取得元のレース情報に競馬場名がありません。項目: '+keys+' / 実際の値: '+JSON.stringify(values)+'。この内容をお知らせください。';area.appendChild(box);return;}
   data={...data,races:normalized};
   if(!available.includes(activeTrack))activeTrack=available[0];
   const tabs=$('tracks');tabs.replaceChildren();
