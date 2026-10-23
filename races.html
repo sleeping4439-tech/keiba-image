@@ -196,7 +196,7 @@ function showDay(d){
   const body=await r.text();let data;
   try{data=JSON.parse(body)}catch{throw Error('APIの応答がJSONではありません (HTTP '+r.status+')')}
   if(!r.ok)throw Error('HTTP '+r.status+' '+(data.error||''));return data;
- }).then(data=>{
+ }).catch(err=>{const fallback=rescueRaceData(iso(d));if(fallback)return fallback;throw err}).then(data=>{
   if(id!==request)return;
   const area=$('races');area.replaceChildren();
   if(!Array.isArray(data.races)||!data.races.length){const fallback=rescueRaceData(iso(d));if(fallback)data=fallback;}
