@@ -11,8 +11,25 @@ function makeHorseNameLink(name){const a=document.createElement('a');a.textConte
 const COMPARE_COLORS=['#d45b51','#287db7','#aa7b23','#7e56b4'];
 const COMPARE_LABELS=['基礎スピード','最高速度','速度持続','運動持続','パワー'];
 let compareNames=new Set();
-function savedHorseProfiles(){try{const h=JSON.parse(localStorage.getItem('yubarokuHorsesV1')||'[]');return Array.isArray(h)?h:[]}catch{return []}}
-function normalizeHorseName(s){return String(s||'').normalize('NFKC').trim()}
+let cloudHorseProfiles=[];
+function savedHorseProfiles(){try{const h=JSON.parse(localStorage.getItem('yubarokuHorsesV1')||'[]');const local=Array.isArray(h)?h:[];return [...local,...cloudHorseProfiles.filter(c=>!local.some(l=>l.id===c.id))]}catch{return cloudHorseProfiles}}
+async function refreshCloudHorseProfiles(){
+ try{
+  const auth=JSON.parse(localStorage.getItem('yubaroku-google-auth-v1')||'null');
+  const token=auth?.access_token;if(!token)return;
+  const cfg=JSON.parse(localStorage.getItem('yubarokuSupabaseConfigV1')||'null');
+  const url=cfg?.url||'https://wsjeeoctwojtgorgaboa.supabase.co';
+  const key=cfg?.key||'sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w';
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))return;
+  const res=await fetch(url+'/rest/v1/yubaroku_store?select=data&owner_id=eq.'+encodeURIComponent(auth.user.id)+'&limit=1',{headers:{apikey:key,Authorization:'Bearer '+token},cache:'no-store'});
+  if(!res.ok)return;
+  const rows=await res.json();
+  const h=rows?.[0]?.data?.horses;
+  if(Array.isArray(h)){cloudHorseProfiles=h.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.values)&&x.values.length===5);if(compareNames.size)renderComparison()}
+ }catch(e){console.warn('ゆ馬録のクラウド照合に失敗',e)}
+}
+
+function normalizeHorseName(s){return String(s||'').normalize('NFKC').replace(/[\\s\\u3000]+/g,'').trim()}
 function findSavedProfile(name){return savedHorseProfiles().find(h=>normalizeHorseName(h.name)===normalizeHorseName(name)&&Array.isArray(h.values)&&h.values.length===5&&h.values.every(v=>Number.isInteger(v)&&v>=1&&v<=5))}
 function chartPoint(level,index){const a=-Math.PI/2+index*2*Math.PI/5;return [210+Math.cos(a)*level*28,188+Math.sin(a)*level*28]}
 function chartPolygon(values){return values.map((v,i)=>chartPoint(v,i).join(',')).join(' ')}
@@ -47,6 +64,8 @@ function resetComparison(){compareNames.clear();$('comparePanel').hidden=true}
 function makeCompareCheck(name){const input=document.createElement('input');input.type='checkbox';input.className='compare-check';input.setAttribute('aria-label',name+'を能力比較');input.checked=compareNames.has(name);input.addEventListener('change',()=>{if(input.checked){if(compareNames.size>=4){input.checked=false;alert('比較できるのは最大4頭です');return}compareNames.add(name)}else compareNames.delete(name);renderComparison()});return input}
 $('clearCompare').addEventListener('click',()=>{resetComparison();document.querySelectorAll('.compare-check').forEach(x=>x.checked=false)});
 window.addEventListener('storage',e=>{if(e.key==='yubarokuHorsesV1')renderComparison()});
+refreshCloudHorseProfiles();
+window.addEventListener('focus',refreshCloudHorseProfiles);
 async function loadEntries(sourceUrl){const id=++detailRequest;const target=$('entries');target.innerHTML='<div class="empty">出走馬を取得中…</div>';let parsed;try{parsed=new URL(sourceUrl);if(parsed.protocol!=='https:'||!['www.jra.go.jp','jra.jp'].includes(parsed.hostname)||parsed.pathname!=='/JRADB/accessD.html'||!parsed.searchParams.get('CNAME'))throw Error('JRA公式出馬表のURLを入力してください');let data=null,lastError='出走馬を取得できませんでした';for(let attempt=0;attempt<3;attempt++){if(id!==detailRequest)return;try{const response=await fetch(ROOT+'/entries?sourceUrl='+encodeURIComponent(parsed.href)+'&_='+Date.now()+'-'+attempt,{cache:'no-store'});data=await response.json();if(response.ok&&data.available&&Array.isArray(data.entries)&&data.entries.length)break;lastError=data.error||'出走馬を取得できませんでした';}catch(err){lastError=err.message||String(err)}if(attempt<2){target.innerHTML='<div class="empty">JRAから再取得しています…（'+(attempt+2)+'/3）</div>';await new Promise(resolve=>setTimeout(resolve,700*(attempt+1)));}}if(id!==detailRequest)return;if(!data?.available||!Array.isArray(data.entries)||!data.entries.length)throw Error(lastError);target.replaceChildren();for(const entry of data.entries){const row=document.createElement('div');row.className='entry-line';const n=document.createElement('span');n.className='entry-no';n.textContent=entry.number+'番';row.append(makeCompareCheck(entry.name),n,makeHorseNameLink(entry.name));target.appendChild(row)}$('entryHint').textContent='JRA公式出馬表から取得しました。';}catch(error){if(id!==detailRequest)return;target.replaceChildren();const e=document.createElement('div');e.className='empty';e.textContent=(error.message||'取得に失敗しました')+'。時間を置いて「出走馬を取得」を押すと再試行できます。';target.appendChild(e);}}
 async function loadAutoEntries(date,track,number,manualFallback=''){
  const id=++detailRequest,target=$('entries');target.innerHTML='<div class="empty">JRA公式出馬表を照合・取得中…</div>';
