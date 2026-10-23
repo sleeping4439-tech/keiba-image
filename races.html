@@ -170,9 +170,10 @@ const VERIFIED_RACE_BACKUP={
   ]
  }
 };
+const OFFICIAL_2026_OCT_PROGRAM={"2026-10-24":{"東京":["2歳未勝利 1,400（ダ）","2歳未勝利 1,800（芝）","2歳未勝利 1,600（芝）（牝）","2歳新馬 1,600（ダ）","2歳新馬 1,600（芝）","2歳新馬 1,400（ダ）","3歳以上1勝クラス 1,600（ダ）（牝）","3歳以上1勝クラス 2,000（芝）","精進湖特別 1,400（芝）","日本農業新聞杯 1,600（ダ）","アルテミスステークス（GⅢ） 1,600（芝）","3歳以上2勝クラス 1,400（ダ）"],"京都":["2歳未勝利 1,800（ダ）","2歳未勝利 2,000（芝）","2歳新馬 1,800（ダ）","障害3歳以上オープン 3,170（ダ）","2歳新馬 1,600（芝）（牝）","3歳以上1勝クラス 1,200（ダ）","3歳以上1勝クラス 1,800（ダ）（牝）","3歳以上2勝クラス 1,800（芝・外）","なでしこ賞 1,400（ダ）","長岡京ステークス 1,400（芝・外）","カシオペアステークス（L） 1,800（芝・外）","3歳以上2勝クラス 1,900（ダ）"],"新潟":["2歳未勝利 1,800（ダ）（牝）","2歳未勝利 1,400（芝）","2歳未勝利 1,200（ダ）","3歳以上1勝クラス 2,000（芝・外）（牝）","2歳新馬 2,000（芝）","3歳以上1勝クラス 1,200（ダ）","3歳以上1勝クラス 1,800（芝・外）","3歳以上1勝クラス 1,800（ダ）","稲光特別 1,000（芝・直）","菅名岳特別 1,800（ダ）","魚沼ステークス 2,000（芝・外）","3歳以上1勝クラス 1,400（芝）"]},"2026-10-25":{"東京":["2歳未勝利 1,600（ダ）","2歳未勝利 2,000（芝）","2歳未勝利 1,600（芝）","障害3歳以上未勝利 3,000（ダ）","2歳新馬 1,800（芝）","2歳新馬 1,400（芝）（牝）","3歳以上1勝クラス 1,400（ダ）","3歳以上1勝クラス 1,600（芝）","三鷹特別 1,600（ダ）","山中湖特別 1,800（芝）","神無月ステークス 1,400（ダ）","3歳以上1勝クラス 1,600（ダ）"],"京都":["2歳未勝利 1,800（ダ）（牝）","2歳未勝利 1,400（ダ）","2歳未勝利 1,600（芝）","2歳新馬 1,400（ダ）","2歳新馬 1,800（芝・外）","3歳以上1勝クラス 1,800（ダ）","3歳以上1勝クラス 1,800（芝・外）","壬生特別 1,200（芝）","萩ステークス（L） 1,800（芝・外）","カノープスステークス 1,800（ダ）","菊花賞（GⅠ） 3,000（芝・外）","嵯峨野特別 1,400（ダ）"],"新潟":["2歳未勝利 1,200（芝）","2歳未勝利 1,800（ダ）","2歳未勝利 2,000（芝）","3歳以上1勝クラス 1,200（ダ）（牝）","2歳新馬 1,400（芝）","3歳以上1勝クラス 1,800（ダ）","3歳以上1勝クラス 2,000（芝・外）","3歳以上1勝クラス 2,500（ダ）","柏崎特別 1,600（芝・外）","村上特別 2,000（芝・外）","ルミエールオータムダッシュ（L） 1,000（芝・直）","3歳以上1勝クラス 1,200（ダ）"]}};
 function backupRaceData(date){
- const tracks=VERIFIED_RACE_BACKUP[date];if(!tracks)return null;
- return {date,available:true,sourceUrl:'https://jra.jp/keiba/calendar2026/2026/10/1012.html',backup:true,races:Object.entries(tracks).flatMap(([track,names])=>names.map((name,i)=>({track,number:i+1,name})))};
+ const tracks=VERIFIED_RACE_BACKUP[date]||OFFICIAL_2026_OCT_PROGRAM[date];if(!tracks)return null;
+ return {date,available:true,sourceUrl:'https://jra.jp/keiba/calendar2026/2026/10/'+date.slice(-4).replace('-','')+'.html',backup:true,races:Object.entries(tracks).flatMap(([track,names])=>names.map((name,i)=>({track,number:i+1,name})))};
 }
 function cachedRaceData(date){try{const d=JSON.parse(localStorage.getItem('keibaRaceCache:'+date)||'null');return d&&Array.isArray(d.races)&&d.races.some(x=>typeof x.track==='string'&&/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/.test(x.track))?d:null}catch{return null}}
 function rescueRaceData(date){return cachedRaceData(date)||backupRaceData(date)}
@@ -205,6 +206,8 @@ function showDay(d){
    err.textContent='レース情報を取得できませんでした。API応答: '+JSON.stringify({available:data.available,error:data.error,notice:data.notice,sourceUrl:data.sourceUrl});
    area.appendChild(err);return;
   }
+  // The Worker currently returns null track values for this JRA weekend. Use the verified official program instead.
+  if(data.races.some(x=>!x.track)&&OFFICIAL_2026_OCT_PROGRAM[iso(d)])data=backupRaceData(iso(d));
   // Cache only schedules with a real racecourse label; do not overwrite previously valid schedules with incomplete Worker responses.
   if(!data.backup&&data.races.some(x=>typeof x.track==='string'&&/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/.test(x.track))){try{localStorage.setItem('keibaRaceCache:'+iso(d),JSON.stringify(data))}catch{}}
   const normalizeTrack=v=>{const t=String(v??'').replace(/\\s+/g,'').replace(/競馬場$/,'');return (t.match(/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/)||[])[0]||''};
