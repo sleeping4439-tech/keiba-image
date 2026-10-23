@@ -206,14 +206,14 @@ function showDay(d){
    area.appendChild(err);return;
   }
   if(!data.backup){try{localStorage.setItem('keibaRaceCache:'+iso(d),JSON.stringify(data))}catch{}}
-  const available=[...new Set(data.races.map(x=>x.track).filter(Boolean))];
+  const available=[...new Set(data.races.map(x=>String(x.track||'').trim()).filter(Boolean))];
   if(!available.includes(activeTrack))activeTrack=available[0];
   const tabs=$('tracks');tabs.replaceChildren();
   function renderTrack(){
    tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.track===activeTrack;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected))});
    area.replaceChildren();
    rerenderCurrentTrack=renderTrack;
-   const list=data.races.filter(x=>x.track===activeTrack).sort((a,b)=>b.number-a.number);
+   const list=data.races.filter(x=>String(x.track||'').trim()===String(activeTrack||'').trim()).sort((a,b)=>b.number-a.number);
    for(const race of list){
     const row=document.createElement('div');row.className='row race-item';
     const title=document.createElement('button');
@@ -222,7 +222,7 @@ function showDay(d){
     if(FAVORITE_DATES.has(iso(d))){const star=document.createElement('button');star.type='button';star.className='favorite-star';const favorite={date:iso(d),track:activeTrack,number:race.number,name:race.name};star.textContent=hasFavorite(favorite)?'★':'☆';star.setAttribute('aria-label',(hasFavorite(favorite)?'お気に入り解除: ':'お気に入り追加: ')+activeTrack+race.number+'R');star.addEventListener('click',()=>toggleFavorite(favorite));row.appendChild(star)}
     row.appendChild(title);area.appendChild(row);
    }
-   if(!list.length){const p=document.createElement('p');p.className='empty';p.textContent='この競馬場のレース情報はありません。';area.appendChild(p)}
+   if(!list.length){const p=document.createElement('p');p.className='empty';const found=[...new Set(data.races.map(x=>String(x.track||'').trim()).filter(Boolean))];p.textContent='選択中の「'+activeTrack+'」のレースは取得できませんでした。取得された競馬場: '+(found.join('・')||'なし')+'。日付・競馬場を確認して「再取得」をお試しください。';area.appendChild(p)}
    if(data.sourceUrl){const a=document.createElement('a');a.href=data.sourceUrl;a.target='_blank';a.rel='noopener';a.textContent='JRA公式の競馬番組を確認 ↗';a.style.cssText='display:inline-block;margin-top:18px;font-size:13px';area.appendChild(a)}
   }
   for(const track of available){
