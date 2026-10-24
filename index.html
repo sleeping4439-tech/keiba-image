@@ -688,7 +688,7 @@ function jraDateLabel(date){
 }
 function renderJRA(){
  const x=jraTracks[state.track];
- const valid=x&&['良','稍重','重','不良'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
+ const valid=x&&['良','稍重','重','不良','稍'].includes(x.condition)&&/^20\d{2}-\d{2}-\d{2}$/.test(x.observedAt||'');
  const history=valid&&Array.isArray(x.history)?x.history.filter(r=>/^20\d{2}-\d{2}-\d{2}$/.test(r.date)&&Number.isFinite(r.cushion)&&Number.isFinite(r.moistureFinish)&&Number.isFinite(r.moistureCorner)):[];
  const latestDate=valid?[x.observedAt,x.cushionMeasuredAt?.slice(0,10),x.moistureMeasuredAt?.slice(0,10)].filter(d=>/^20\d{2}-\d{2}-\d{2}$/.test(d||'')).sort().at(-1):null;
  const selected=history.find(r=>r.date===chosenJraDates[state.track])||null;
@@ -700,7 +700,7 @@ function renderJRA(){
  $('jraMoistureFinish').textContent='G前 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureFinish)?row.moistureFinish.toFixed(1)+'%':'—');
  $('jraMoistureCorner').textContent='4角 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
  // A condition bulletin is not automatically valid for earlier measurement dates.
- $('jraCondition').textContent=valid&&(!selected||date>=x.conditionObservedAt)?x.condition:'—';
+ $('jraCondition').textContent=valid&&(!selected||date>=x.conditionObservedAt)?(x.condition==='稍重'?'稍':x.condition):'—';
  const meta=courseMeta[state.track]||(courseMeta[state.track]={courseDirection:['東京','新潟','中京'].includes(state.track)?'左':'右'});
  meta.meetingNumber=valid&&Number.isInteger(x.meetingNumber)?x.meetingNumber:null;
  meta.dayNumber=valid&&Number.isInteger(x.meetingDay)?x.meetingDay:null;
@@ -735,13 +735,14 @@ dateChoice.addEventListener('click',e=>{
 document.addEventListener('click',e=>{if(!dateChoice.contains(e.target)&&!dateArrow.contains(e.target))closeDateChoice()});
 async function refreshJRA(){
  try{
-  const res=await fetch(JRA_URL,{cache:'no-store'});
+  const res=await fetch(JRA_URL+'?t='+Date.now(),{cache:'no-store'});
   if(!res.ok)throw Error('unavailable');
   const body=await res.json();
-  jraTracks=body.schemaVersion===1&&body.tracks?body.tracks:{};
+  if(body.schemaVersion!==1||!body.tracks||typeof body.tracks!=='object')throw Error('invalid JRA response');
+  jraTracks=body.tracks;
   const active=Array.isArray(body.activeTracks)?body.activeTracks:Object.keys(jraTracks);
   if(active.length)setActiveJraTracks(active);
- }catch{jraTracks={};}
+ }catch(error){console.warn('JRA latest refresh failed',error);}
  renderJRA();
  // Preserve the JRA measurement date, not the day the browser was opened.
  for(const track of ALL_JRA_TRACKS){
@@ -771,6 +772,9 @@ async function refreshJRA(){
 }
 document.getElementById('tabs').addEventListener('click',()=>{closeDateChoice();renderJRA()});
 refreshJRA();
+// Recheck official data periodically while the page stays open, including after returning to the tab.
+setInterval(refreshJRA,5*60*1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshJRA()});
 </script>
 <script type="module">
 // Each edited track is saved to the signed-in owner's private history immediately.
