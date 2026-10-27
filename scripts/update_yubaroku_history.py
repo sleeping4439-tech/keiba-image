@@ -90,6 +90,13 @@ def main():
     existing=json.loads(OUTPUT.read_text(encoding='utf-8')) if OUTPUT.exists() else {'schemaVersion':1,'horses':[]}
     by_id={str(h.get('horseId')):h for h in existing.get('horses',[]) if h.get('horseId')}
     existing_by_name={clean(h.get('name')):str(h.get('horseId')) for h in by_id.values()}
+    # Refresh previously discovered horses on later scheduled runs.
+    configured={clean(e.get('name')) for e in entries}
+    for stored in by_id.values():
+        if clean(stored.get('name')) not in configured:
+            entries.append({'name':stored.get('name'),'horseId':stored.get('horseId')})
+            configured.add(clean(stored.get('name')))
+    if len(entries)>20: raise ValueError('Limit: 20 total horses per run')
     session=requests.Session()
     failures=[]
     for index,entry in enumerate(entries):
