@@ -103,7 +103,7 @@ def main():
     # Bound each network request, not the number of horses in the user's database.
     # Rotate through the complete list across scheduled runs.
     batch_size=20
-    offset=int(os.environ.get('YUBAROKU_BATCH_OFFSET','0') or '0')
+    offset=int(os.environ.get('YUBAROKU_BATCH_OFFSET',str((datetime.now(timezone.utc).isocalendar().week-1)*batch_size)) or '0')
     if len(entries)>batch_size:
         print(f'Processing {min(batch_size,len(entries))} of {len(entries)} horses at offset {offset}')
         entries=(entries[offset%len(entries):]+entries[:offset%len(entries)])[:batch_size]
