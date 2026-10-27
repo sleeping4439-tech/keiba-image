@@ -2,10 +2,9 @@
 """Fetch race histories for explicitly mapped netkeiba horse IDs.
 Runs only when manually dispatched; fails safely without overwriting existing feed.
 """
-import json, os, re, sys, time
+import json, re, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
@@ -36,7 +35,8 @@ def parse(html):
                 return clean(row[index]) if index<len(row) else ''
         return ''
     races=[]
-    for tr in table.select('tbody tr'):
+    body_rows=table.select('tbody tr') or table.select('tr')[1:]
+    for tr in body_rows:
         cells=[clean(td.get_text(' ',strip=True)) for td in tr.find_all('td',recursive=False)]
         if not cells:continue
         date=col(cells,'日付')
@@ -46,7 +46,7 @@ def parse(html):
         name=col(cells,'レース名')
         if not name:continue
         venue=col(cells,'開催')
-        course=next((x for x in COURSES if x in venue),'')
+        course=next((x for x in sorted(COURSES,key=len,reverse=True) if x in venue),'')
         surface_dist=col(cells,'距離')
         match_dist=re.search(r'(芝|ダ|障)\s*(\d{3,4})',surface_dist)
         surface={'ダ':'ダート','芝':'芝','障':'障害'}.get(match_dist[1],'') if match_dist else ''
@@ -71,7 +71,12 @@ def main():
         if not re.fullmatch(r'\d{10}',horse_id) or not name:
             failures.append(f'Invalid mapping: {entry}');continue
         try:
-            races=parse(get_html(session,horse_id))
+            html=get_html(session,horse_id)
+            soup=BeautifulSoup(html,'html.parser')
+            title=clean(soup.title.get_text(' ',strip=True)) if soup.title else ''
+            if name not in title and name not in clean(soup.select_one('h1').get_text(' ',strip=True) if soup.select_one('h1') else ''):
+                raise ValueError('Horse name mismatch; refusing to attribute races to wrong horse')
+            races=parse(html)
             by_id[horse_id]={'horseId':horse_id,'name':name,'races':races}
             print(f'{name}: {len(races)} races')
         except Exception as exc:
@@ -82,4 +87,5 @@ def main():
     result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name'])}
     OUTPUT.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     for error in failures:print('WARNING',error,file=sys.stderr)
+    if failures:raise RuntimeError('Some horse histories could not be refreshed; existing successful data was preserved')
 if __name__=='__main__':main()
