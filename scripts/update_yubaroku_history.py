@@ -2,7 +2,7 @@
 """Fetch race histories for explicitly mapped netkeiba horse IDs.
 Runs only when manually dispatched; fails safely without overwriting existing feed.
 """
-import json, re, sys, time
+import json, re, sys, time, os
 from urllib.parse import quote
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,15 +77,23 @@ def resolve_horse_id(session, name):
 
 def main():
     config=json.loads(CONFIG.read_text(encoding='utf-8'))
-    entries=config.get('horses',[])
+    entries=list(config.get('horses',[]))
+    raw_names=os.environ.get('YUBAROKU_HORSE_NAMES','')
+    requested=[clean(x) for x in re.split(r'[,\\n\\r、]+',raw_names) if clean(x)]
+    known_names={clean(e.get('name')) for e in entries}
+    for name in requested:
+        if name not in known_names:
+            entries.append({'name':name})
+            known_names.add(name)
     if not entries: print('No configured horses; nothing to fetch');return
-    if len(entries)>20:raise ValueError('Limit: 20 horses per manual run')
+    if len(entries)>20:raise ValueError('Limit: 20 horses per run; split the list into batches')
     existing=json.loads(OUTPUT.read_text(encoding='utf-8')) if OUTPUT.exists() else {'schemaVersion':1,'horses':[]}
     by_id={str(h.get('horseId')):h for h in existing.get('horses',[]) if h.get('horseId')}
+    existing_by_name={clean(h.get('name')):str(h.get('horseId')) for h in by_id.values()}
     session=requests.Session()
     failures=[]
     for index,entry in enumerate(entries):
-        horse_id=str(entry.get('horseId',''))
+        horse_id=str(entry.get('horseId') or existing_by_name.get(clean(entry.get('name')),'') )
         name=clean(entry.get('name'))
         if not name or (horse_id and not re.fullmatch(r'\d{10}',horse_id)):
             failures.append(f'Invalid mapping: {entry}');continue
