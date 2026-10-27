@@ -3,6 +3,7 @@
 Runs only when manually dispatched; fails safely without overwriting existing feed.
 """
 import json, re, sys, time
+from urllib.parse import quote
 from datetime import datetime, timezone
 from pathlib import Path
 import requests
@@ -57,6 +58,23 @@ def parse(html):
                           last3f=col(cells,'上り','上がり'),positions=col(cells,'通過')))
     if not races:raise ValueError('No valid races parsed; refusing to overwrite data')
     return sorted(races,key=lambda r:r['date'],reverse=True)
+def resolve_horse_id(session, name):
+    """Resolve an exact horse name via netkeiba search; never guess among multiple IDs."""
+    url='https://db.netkeiba.com/?pid=horse_list&word='+quote(name)
+    response=session.get(url,headers=HEADERS,timeout=25)
+    response.raise_for_status()
+    response.encoding=response.apparent_encoding or response.encoding
+    soup=BeautifulSoup(response.text,'html.parser')
+    candidates=set()
+    for a in soup.select('a[href*="/horse/"]'):
+        href=a.get('href','')
+        match=re.search(r'/horse/(?:result/)?(\\d{10})/?',href)
+        if match and clean(a.get_text(' ',strip=True))==name:
+            candidates.add(match.group(1))
+    if len(candidates)!=1:
+        raise ValueError(f'Horse search returned {len(candidates)} exact IDs; manual ID confirmation required')
+    return next(iter(candidates))
+
 def main():
     config=json.loads(CONFIG.read_text(encoding='utf-8'))
     entries=config.get('horses',[])
@@ -69,9 +87,12 @@ def main():
     for index,entry in enumerate(entries):
         horse_id=str(entry.get('horseId',''))
         name=clean(entry.get('name'))
-        if not re.fullmatch(r'\d{10}',horse_id) or not name:
+        if not name or (horse_id and not re.fullmatch(r'\d{10}',horse_id)):
             failures.append(f'Invalid mapping: {entry}');continue
         try:
+            if not horse_id:
+                horse_id=resolve_horse_id(session,name)
+                print(f'Resolved {name} to {horse_id}')
             html=get_html(session,horse_id)
             soup=BeautifulSoup(html,'html.parser')
             title=clean(soup.title.get_text(' ',strip=True)) if soup.title else ''
@@ -83,7 +104,7 @@ def main():
         except Exception as exc:
             failures.append(f'{name}: {type(exc).__name__}: {exc}')
         if index<len(entries)-1:time.sleep(4)
-    if not any(str(e.get('horseId')) in by_id for e in entries):
+    if not any(h.get('name') in [e.get('name') for e in entries] for h in by_id.values()):
         raise RuntimeError('No usable history. '+ '; '.join(failures))
     result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name'])}
     OUTPUT.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
