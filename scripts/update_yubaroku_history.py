@@ -86,19 +86,24 @@ def main():
             entries.append({'name':name})
             known_names.add(name)
     if not entries: print('No configured horses; nothing to fetch');return
-    if len(entries)>20:raise ValueError('Limit: 20 horses per run; split the list into batches')
     existing=json.loads(OUTPUT.read_text(encoding='utf-8')) if OUTPUT.exists() else {'schemaVersion':1,'horses':[]}
     by_id={str(h.get('horseId')):h for h in existing.get('horses',[]) if h.get('horseId')}
     existing_by_name={clean(h.get('name')):str(h.get('horseId')) for h in by_id.values()}
-    # Refresh previously discovered horses on later scheduled runs.
     configured={clean(e.get('name')) for e in entries}
     for stored in by_id.values():
         if clean(stored.get('name')) not in configured:
             entries.append({'name':stored.get('name'),'horseId':stored.get('horseId')})
             configured.add(clean(stored.get('name')))
-    if len(entries)>20: raise ValueError('Limit: 20 total horses per run')
+    # Bound each network request, not the number of horses in the user's database.
+    # Rotate through the complete list across scheduled runs.
+    batch_size=20
+    offset=int(os.environ.get('YUBAROKU_BATCH_OFFSET','0') or '0')
+    if len(entries)>batch_size:
+        print(f'Processing {min(batch_size,len(entries))} of {len(entries)} horses at offset {offset}')
+        entries=(entries[offset%len(entries):]+entries[:offset%len(entries)])[:batch_size]
     session=requests.Session()
     failures=[]
+    status={clean(x.get('name')):x for x in existing.get('status',[]) if x.get('name')}
     for index,entry in enumerate(entries):
         horse_id=str(entry.get('horseId') or existing_by_name.get(clean(entry.get('name')),'') )
         name=clean(entry.get('name'))
@@ -115,13 +120,15 @@ def main():
                 raise ValueError('Horse name mismatch; refusing to attribute races to wrong horse')
             races=parse(html)
             by_id[horse_id]={'horseId':horse_id,'name':name,'races':races}
+            status[name]={'name':name,'state':'ok','raceCount':len(races),'checkedAt':datetime.now(timezone.utc).isoformat()}
             print(f'{name}: {len(races)} races')
         except Exception as exc:
             failures.append(f'{name}: {type(exc).__name__}: {exc}')
+            status[name]={'name':name,'state':'error','reason':str(exc)[:160],'checkedAt':datetime.now(timezone.utc).isoformat()}
         if index<len(entries)-1:time.sleep(4)
     if not any(h.get('name') in [e.get('name') for e in entries] for h in by_id.values()):
         raise RuntimeError('No usable history. '+ '; '.join(failures))
-    result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name'])}
+    result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name']),'status':sorted(status.values(),key=lambda h:h['name'])}
     OUTPUT.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     for error in failures:print('WARNING',error,file=sys.stderr)
     print(f'Completed: {len(entries)-len(failures)} succeeded, {len(failures)} failed; existing successful data was preserved')
