@@ -68,7 +68,7 @@ def resolve_horse_id(session, name):
     candidates=set()
     for a in soup.select('a[href*="/horse/"]'):
         href=a.get('href','')
-        match=re.search(r'/horse/(?:result/)?(\\d{10})/?',href)
+        match=re.search(r'/horse/(?:result/)?(\d{10})/?',href)
         if match and clean(a.get_text(' ',strip=True))==name:
             candidates.add(match.group(1))
     if len(candidates)!=1:
@@ -79,7 +79,7 @@ def main():
     config=json.loads(CONFIG.read_text(encoding='utf-8'))
     entries=list(config.get('horses',[]))
     raw_names=os.environ.get('YUBAROKU_HORSE_NAMES','')
-    requested=[clean(x) for x in re.split(r'[,\\n\\r、]+',raw_names) if clean(x)]
+    requested=[clean(x) for x in re.split(r'[,\n\r、]+',raw_names) if clean(x)]
     known_names={clean(e.get('name')) for e in entries}
     for name in requested:
         if name not in known_names:
