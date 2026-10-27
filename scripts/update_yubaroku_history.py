@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 ROOT=Path(__file__).resolve().parents[1]
 CONFIG=ROOT/'yubaroku'/'horse-sources.json'
 OUTPUT=ROOT/'yubaroku'/'race-history.json'
+REGISTRY=ROOT/'yubaroku'/'history-targets.json'
 COURSES={'札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉','大井','川崎','船橋','浦和','園田','姫路','門別','盛岡','水沢','名古屋','笠松','金沢','高知','佐賀'}
 HEADERS={'User-Agent':'Yubaroku personal history updater (contact repository owner; no bulk crawling)','Accept-Language':'ja-JP,ja;q=0.9'}
 def clean(s): return re.sub(r'\s+',' ',str(s or '')).strip()
@@ -78,13 +79,18 @@ def resolve_horse_id(session, name):
 def main():
     config=json.loads(CONFIG.read_text(encoding='utf-8'))
     entries=list(config.get('horses',[]))
+    registry=json.loads(REGISTRY.read_text(encoding='utf-8')) if REGISTRY.exists() else {'names':[]}
+    saved_names=[clean(x) for x in registry.get('names',[]) if clean(x)]
     raw_names=os.environ.get('YUBAROKU_HORSE_NAMES','')
     requested=[clean(x) for x in re.split(r'[,\n\r、]+',raw_names) if clean(x)]
     known_names={clean(e.get('name')) for e in entries}
-    for name in requested:
+    for name in dict.fromkeys(saved_names+requested):
         if name not in known_names:
             entries.append({'name':name})
             known_names.add(name)
+    if requested:
+        registry['names']=list(dict.fromkeys(saved_names+requested))
+        REGISTRY.write_text(json.dumps(registry,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     if not entries: print('No configured horses; nothing to fetch');return
     existing=json.loads(OUTPUT.read_text(encoding='utf-8')) if OUTPUT.exists() else {'schemaVersion':1,'horses':[]}
     by_id={str(h.get('horseId')):h for h in existing.get('horses',[]) if h.get('horseId')}
