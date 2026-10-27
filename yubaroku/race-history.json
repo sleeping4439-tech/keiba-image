@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-27T11:00:24.820956+00:00",
+  "updatedAt": "2026-10-27T14:30:19.697501+00:00",
   "horses": [
     {
       "horseId": "2022105519",
@@ -117,6 +117,20 @@
           "positions": "10-10"
         }
       ]
+    }
+  ],
+  "status": [
+    {
+      "name": "ダノンデサイル",
+      "state": "error",
+      "reason": "Horse search returned 0 exact IDs; manual ID confirmation required",
+      "checkedAt": "2026-10-27T14:30:19.697469+00:00"
+    },
+    {
+      "name": "マスカレードボール",
+      "state": "ok",
+      "raceCount": 10,
+      "checkedAt": "2026-10-27T14:30:10.729958+00:00"
     }
   ]
 }
