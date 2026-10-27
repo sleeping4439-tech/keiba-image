@@ -14,8 +14,9 @@ OUTPUT=ROOT/'yubaroku'/'race-history.json'
 COURSES={'札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉','大井','川崎','船橋','浦和','園田','姫路','門別','盛岡','水沢','名古屋','笠松','金沢','高知','佐賀'}
 HEADERS={'User-Agent':'Yubaroku personal history updater (contact repository owner; no bulk crawling)','Accept-Language':'ja-JP,ja;q=0.9'}
 def clean(s): return re.sub(r'\s+',' ',str(s or '')).strip()
+def header(s): return re.sub(r'\s+','',str(s or ''))
 def get_html(session, horse_id):
-    url=f'https://db.netkeiba.com/horse/{horse_id}/'
+    url=f'https://db.netkeiba.com/horse/result/{horse_id}/'
     response=session.get(url,headers=HEADERS,timeout=25)
     response.raise_for_status()
     response.encoding=response.apparent_encoding or response.encoding
@@ -24,14 +25,14 @@ def parse(html):
     soup=BeautifulSoup(html,'html.parser')
     table=soup.select_one('table.db_h_race_results')
     if not table: raise ValueError('Race result table not found (site layout/access may have changed)')
-    headers=[clean(th.get_text(' ',strip=True)) for th in table.select('thead th')]
+    headers=[header(th.get_text(' ',strip=True)) for th in table.select('thead th')]
     if not headers:
         first=table.find('tr')
-        headers=[clean(th.get_text(' ',strip=True)) for th in first.find_all(['th','td'])] if first else []
+        headers=[header(th.get_text(' ',strip=True)) for th in first.find_all(['th','td'])] if first else []
     def col(row,*names):
         for name in names:
-            if name in headers:
-                index=headers.index(name)
+            if header(name) in headers:
+                index=headers.index(header(name))
                 return clean(row[index]) if index<len(row) else ''
         return ''
     races=[]
