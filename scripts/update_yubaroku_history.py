@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Fetch race histories for explicitly mapped netkeiba horse IDs.
+Runs only when manually dispatched; fails safely without overwriting existing feed.
+"""
+import json, os, re, sys, time
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+import requests
+from bs4 import BeautifulSoup
+
+ROOT=Path(__file__).resolve().parents[1]
+CONFIG=ROOT/'yubaroku'/'horse-sources.json'
+OUTPUT=ROOT/'yubaroku'/'race-history.json'
+COURSES={'札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉','大井','川崎','船橋','浦和','園田','姫路','門別','盛岡','水沢','名古屋','笠松','金沢','高知','佐賀'}
+HEADERS={'User-Agent':'Yubaroku personal history updater (contact repository owner; no bulk crawling)','Accept-Language':'ja-JP,ja;q=0.9'}
+def clean(s): return re.sub(r'\s+',' ',str(s or '')).strip()
+def get_html(session, horse_id):
+    url=f'https://db.netkeiba.com/horse/{horse_id}/'
+    response=session.get(url,headers=HEADERS,timeout=25)
+    response.raise_for_status()
+    response.encoding=response.apparent_encoding or response.encoding
+    return response.text
+def parse(html):
+    soup=BeautifulSoup(html,'html.parser')
+    table=soup.select_one('table.db_h_race_results')
+    if not table: raise ValueError('Race result table not found (site layout/access may have changed)')
+    headers=[clean(th.get_text(' ',strip=True)) for th in table.select('thead th')]
+    if not headers:
+        first=table.find('tr')
+        headers=[clean(th.get_text(' ',strip=True)) for th in first.find_all(['th','td'])] if first else []
+    def col(row,*names):
+        for name in names:
+            if name in headers:
+                index=headers.index(name)
+                return clean(row[index]) if index<len(row) else ''
+        return ''
+    races=[]
+    for tr in table.select('tbody tr'):
+        cells=[clean(td.get_text(' ',strip=True)) for td in tr.find_all('td',recursive=False)]
+        if not cells:continue
+        date=col(cells,'日付')
+        match=re.match(r'^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$',date)
+        if not match:continue
+        date='-'.join([match[1],match[2].zfill(2),match[3].zfill(2)])
+        name=col(cells,'レース名')
+        if not name:continue
+        venue=col(cells,'開催')
+        course=next((x for x in COURSES if x in venue),'')
+        surface_dist=col(cells,'距離')
+        match_dist=re.search(r'(芝|ダ|障)\s*(\d{3,4})',surface_dist)
+        surface={'ダ':'ダート','芝':'芝','障':'障害'}.get(match_dist[1],'') if match_dist else ''
+        distance=match_dist[2] if match_dist else ''
+        races.append(dict(date=date,name=name[:100],course=course,surface=surface,distance=distance,
+                          finish=col(cells,'着順'),time=col(cells,'タイム'),
+                          last3f=col(cells,'上り','上がり'),positions=col(cells,'通過')))
+    if not races:raise ValueError('No valid races parsed; refusing to overwrite data')
+    return sorted(races,key=lambda r:r['date'],reverse=True)
+def main():
+    config=json.loads(CONFIG.read_text(encoding='utf-8'))
+    entries=config.get('horses',[])
+    if not entries: print('No configured horses; nothing to fetch');return
+    if len(entries)>20:raise ValueError('Limit: 20 horses per manual run')
+    existing=json.loads(OUTPUT.read_text(encoding='utf-8')) if OUTPUT.exists() else {'schemaVersion':1,'horses':[]}
+    by_id={str(h.get('horseId')):h for h in existing.get('horses',[]) if h.get('horseId')}
+    session=requests.Session()
+    failures=[]
+    for index,entry in enumerate(entries):
+        horse_id=str(entry.get('horseId',''))
+        name=clean(entry.get('name'))
+        if not re.fullmatch(r'\d{10}',horse_id) or not name:
+            failures.append(f'Invalid mapping: {entry}');continue
+        try:
+            races=parse(get_html(session,horse_id))
+            by_id[horse_id]={'horseId':horse_id,'name':name,'races':races}
+            print(f'{name}: {len(races)} races')
+        except Exception as exc:
+            failures.append(f'{name}: {type(exc).__name__}: {exc}')
+        if index<len(entries)-1:time.sleep(4)
+    if not any(str(e.get('horseId')) in by_id for e in entries):
+        raise RuntimeError('No usable history. '+ '; '.join(failures))
+    result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name'])}
+    OUTPUT.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    for error in failures:print('WARNING',error,file=sys.stderr)
+if __name__=='__main__':main()
