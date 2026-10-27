@@ -1,6 +1,13 @@
 name: Update Yubaroku race histories
 on:
   workflow_dispatch:
+    inputs:
+      horse_names:
+        description: '追加取得する馬名（改行・カンマ区切り、最大20頭）'
+        required: false
+        type: string
+  schedule:
+    - cron: '35 20 * * 1'
 permissions:
   contents: write
 jobs:
@@ -14,6 +21,8 @@ jobs:
           python-version: '3.12'
       - run: pip install requests beautifulsoup4
       - run: python scripts/update_yubaroku_history.py
+        env:
+          YUBAROKU_HORSE_NAMES: ${{ inputs.horse_names }}
       - name: Commit changed feed
         run: |
           if git diff --quiet -- yubaroku/race-history.json; then exit 0; fi
