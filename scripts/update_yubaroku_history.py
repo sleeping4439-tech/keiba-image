@@ -124,5 +124,5 @@ def main():
     result={'schemaVersion':1,'updatedAt':datetime.now(timezone.utc).isoformat(),'horses':sorted(by_id.values(),key=lambda h:h['name'])}
     OUTPUT.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     for error in failures:print('WARNING',error,file=sys.stderr)
-    if failures:raise RuntimeError('Some horse histories could not be refreshed; existing successful data was preserved')
+    print(f'Completed: {len(entries)-len(failures)} succeeded, {len(failures)} failed; existing successful data was preserved')
 if __name__=='__main__':main()
