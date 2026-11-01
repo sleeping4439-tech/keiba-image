@@ -284,8 +284,29 @@ function extractRecentMeasurements(html,course,year,type,conditionDate){
  }
  return entries.sort((a,b)=>b.time.localeCompare(a.time));
 }
+// This is the same live bulletin requested by JRA's baba2025.js.
+// The page's initial condition HTML can remain at Friday noon all weekend.
+const CONDITION_API='https://www.jra.go.jp/JRADB/accessJ.html';
+async function liveConditions(){
+ try{
+  const response=await fetch(CONDITION_API,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Cache-Control':'no-cache'},body:'CNAME=pw01iwtS3%2FCD',signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw Error('JRA condition HTTP '+response.status);
+  const data=JSON.parse(new TextDecoder('shift_jis').decode(await response.arrayBuffer()));
+  if(!Array.isArray(data.kaisai_info))throw Error('Invalid JRA condition response');
+  return data.kaisai_info;
+ }catch(error){return [];}
+}
+function applyLiveCondition(track,bulletins){
+ const bulletin=bulletins.find(row=>row.jyoname===track.course&&row.kaisai_ymd===track.meetingDate.replaceAll('-',''));
+ if(!bulletin||!['良','稍重','重','不良'].includes(bulletin.ba_s))return false;
+ track.condition=bulletin.ba_s;
+ track.observedAt=track.meetingDate;
+ track.conditionSourceUrl=CONDITION_API;
+ track.weather=['晴','曇','雨','雪','小雨','小雪'].includes(bulletin.weather)?bulletin.weather:null;
+ return true;
+}
 async function jraVerified(){
- const pages=await jraDiagnostic();
+ const [pages,bulletins]=await Promise.all([jraDiagnostic(),liveConditions()]);
  const origins=[BASE,'https://jra.jp/keiba/baba/'];
  const loadMeasurements=async file=>{
   const results=await Promise.allSettled(origins.map(async origin=>{
@@ -306,6 +327,7 @@ async function jraVerified(){
    const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
    const x=extractCondition(html,page.title,page.url);
    if(!x){parseErrors.push({course:page.course,stage:'extractCondition',title:page.title});continue;}
+   applyLiveCondition(x,bulletins);
    const year=Number(x.observedAt.slice(0,4));
    const meetingDate=(textOnly(html).match(/第\d+回\s*(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)競馬\s*第\d+日\s*[（(]\s*20\d{2}年\s*(\d{1,2})月\s*(\d{1,2})日/)||[]);
    const measurementLimit=meetingDate.length?year+'-'+String(Number(meetingDate[1])).padStart(2,'0')+'-'+String(Number(meetingDate[2])).padStart(2,'0'):x.observedAt;
@@ -359,7 +381,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return new Response(JSON.stringify({ok:true,version:24,build:'all-jra-tracks-title-measurements-20261012',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
+ if(path==='/health')return new Response(JSON.stringify({ok:true,version:25,build:'live-jra-condition-bulletin-20261101',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/freshness-diagnostics'){
@@ -734,7 +756,7 @@ export default {async fetch(request){
  if(path==='/'||path==='/latest'){
  const tracks=await jraVerified();
  const activeTracks=ALL_JRA_TRACKS.filter(name=>tracks[name]);
- const complete=activeTracks.length>0&&activeTracks.every(name=>{const x=tracks[name];return x&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
+ const complete=activeTracks.length>0&&activeTracks.every(name=>{const x=tracks[name];return x&&x.conditionObservedAt===x.observedAt&&['良','稍重','重','不良'].includes(x.condition)&&Number.isFinite(x.cushion)&&Number.isFinite(x.moistureFinish)&&Number.isFinite(x.moistureCorner)&&typeof x.cushionMeasuredAt==='string'&&typeof x.moistureMeasuredAt==='string'});
  const status=complete?'complete':Object.keys(tracks).length?'partial':'unavailable';
  const debug=url.searchParams.has('debug')?tracks._debug:undefined;
  return new Response(JSON.stringify({schemaVersion:1,updatedAt:new Date().toISOString(),tracks,activeTracks,status,...(debug?{debug}:{}),reason:complete?'開催場の芝馬場状態・クッション値・含水率・測定時刻を取得':status==='partial'?'一部データ未取得':'公式データを取得できませんでした'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});

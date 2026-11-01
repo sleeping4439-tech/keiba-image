@@ -48,3 +48,38 @@ test('newest measurement wins across official origins',()=>{
  context.html=['<div id="rcB" title="京都"><div class="unit"><div class="time">10月11日（日曜）7時00分</div><div class="cushion">10.3</div></div></div>','<div id="rcA" title="京都"><div class="unit"><div class="time">10月12日（月曜）7時00分</div><div class="cushion"> 10.7 </div></div></div>'];
  assert.equal(run("extractSourceMeasurements(html,'京都',2026,'cushion','2026-10-12').cushion"),10.7);
 });
+
+test('live bulletin matches course and date and keeps turf separate from dirt',()=>{
+ context.track={course:'京都',meetingDate:'2026-11-01',observedAt:'2026-10-30',condition:'良',weather:'雨'};
+ context.bulletins=[{jyoname:'東京',kaisai_ymd:'20261101',ba_s:'不良'},{jyoname:'京都',kaisai_ymd:'20261101',ba_s:'稍重',ba_d:'重',weather:'晴'}];
+ assert.equal(run('applyLiveCondition(track,bulletins)'),true);
+ assert.equal(context.track.condition,'稍重');
+ assert.equal(context.track.observedAt,'2026-11-01');
+ assert.equal(context.track.weather,'晴');
+ for(const row of [{jyoname:'京都',kaisai_ymd:'20261031',ba_s:'良'},{jyoname:'京都',kaisai_ymd:'20261101',ba_s:'不明'}]){
+  context.bulletins=[row];
+  assert.equal(run('applyLiveCondition(track,bulletins)'),false);
+  assert.equal(context.track.condition,'稍重');
+ }
+});
+test('Sunday live bulletin updates current history without rewriting Friday',async()=>{
+ context.fetch=async(url,options)=>{
+  const path=new URL(url).pathname.split('/').pop();
+  if(path==='accessJ.html'){
+   assert.equal(options.method,'POST');
+   assert.equal(options.body,'CNAME=pw01iwtS3%2FCD');
+   return Response.json({kaisai_info:[{jyoname:'京都',kaisai_ymd:'20261101',ba_s:'稍重',weather:'晴'}]});
+  }
+  if(path==='index.html')return new Response('<title>馬場情報（京都競馬場）</title>第4回京都競馬第11日（2026年11月1日） 馬場状態（10月30日（金曜）正午現在） 天候： 雨 芝 良 ダート 重');
+  if(path.startsWith('index'))return new Response('',{status:404});
+  return new Response('<div id="rcA" title="京都">'+['11月1日','10月30日'].map(date=>`<div class="unit"><div class="time">${date}7時00分</div><div class="cushion">9.4</div><div class="turf"><span class="mg">10.9</span><span class="m4c">9.2</span></div></div>`).join('')+'</div>');
+ };
+ const data=await (await run('worker.fetch(request)')).json();
+ const track=data.tracks['京都'];
+ assert.equal(data.status,'complete');
+ assert.equal(track.conditionObservedAt,'2026-11-01');
+ assert.equal(track.history.find(x=>x.date==='2026-11-01').condition,'稍重');
+ assert.equal(track.history.find(x=>x.date==='2026-10-30').condition,undefined);
+ context.fetch=async()=>{throw Error('offline')};
+ assert.equal((await run('liveConditions()')).length,0);
+});
