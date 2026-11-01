@@ -128,15 +128,15 @@ try{const saved=JSON.parse(localStorage.getItem(LAST_VIEW_KEY)||'null');if(saved
 function clearRestoredRace(){restoreRace=null;try{localStorage.removeItem(LAST_VIEW_KEY)}catch{}}
 
 const FAVORITE_KEY='keiba-race-favorites:2026-10-17-18'; // Preserve existing favorites storage
-const FAVORITE_DATES=new Set(['2026-10-17','2026-10-18','2026-10-24','2026-10-25']);
+function validFavoriteDate(date){if(typeof date!=='string'||!/^20\d{2}-\d{2}-\d{2}$/.test(date))return false;const parsed=new Date(date+'T00:00:00Z');return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===date;}
 let activeFavoriteRace=null;
 function favoriteId(r){return r.date+'|'+r.track+'|'+r.number}
-function getFavorites(){try{const list=JSON.parse(localStorage.getItem(FAVORITE_KEY)||'[]');return Array.isArray(list)?list.filter(r=>r&&FAVORITE_DATES.has(r.date)&&ALL_FAVORITE_TRACKS.includes(r.track)&&Number.isInteger(r.number)&&r.number>=1&&r.number<=12&&typeof r.name==='string'):[]}catch{return []}}
+function getFavorites(){try{const list=JSON.parse(localStorage.getItem(FAVORITE_KEY)||'[]');return Array.isArray(list)?list.filter(r=>r&&validFavoriteDate(r.date)&&ALL_FAVORITE_TRACKS.includes(r.track)&&Number.isInteger(r.number)&&r.number>=1&&r.number<=12&&typeof r.name==='string'):[]}catch{return []}}
 const ALL_FAVORITE_TRACKS=['札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉'];
 function hasFavorite(r){return getFavorites().some(x=>favoriteId(x)===favoriteId(r))}
-function toggleFavorite(r){if(!FAVORITE_DATES.has(r.date))return;let list=getFavorites();const id=favoriteId(r);list=list.some(x=>favoriteId(x)===id)?list.filter(x=>favoriteId(x)!==id):[...list,r];try{localStorage.setItem(FAVORITE_KEY,JSON.stringify(list))}catch(e){alert('お気に入りを保存できませんでした');return}renderFavorites();updateDetailFavorite();if(typeof rerenderCurrentTrack==='function')rerenderCurrentTrack()}
+function toggleFavorite(r){if(!validFavoriteDate(r.date))return;let list=getFavorites();const id=favoriteId(r);list=list.some(x=>favoriteId(x)===id)?list.filter(x=>favoriteId(x)!==id):[...list,r];try{localStorage.setItem(FAVORITE_KEY,JSON.stringify(list))}catch(e){alert('お気に入りを保存できませんでした');return}renderFavorites();updateDetailFavorite();if(typeof rerenderCurrentTrack==='function')rerenderCurrentTrack()}
 let rerenderCurrentTrack=null;
-function updateDetailFavorite(){const b=$('detailFavorite');if(!activeFavoriteRace||!FAVORITE_DATES.has(activeFavoriteRace.date)){b.hidden=true;return}b.hidden=false;b.textContent=hasFavorite(activeFavoriteRace)?'★ お気に入り解除':'☆ お気に入りに追加'}
+function updateDetailFavorite(){const b=$('detailFavorite');if(!activeFavoriteRace||!validFavoriteDate(activeFavoriteRace.date)){b.hidden=true;return}b.hidden=false;b.textContent=hasFavorite(activeFavoriteRace)?'★ お気に入り解除':'☆ お気に入りに追加'}
 $('detailFavorite').addEventListener('click',()=>{if(activeFavoriteRace)toggleFavorite(activeFavoriteRace)});
 function renderFavorites(){const list=getFavorites();$('favoriteCount').textContent=list.length+'件';const box=$('favoriteList');box.replaceChildren();if(!list.length){const p=document.createElement('p');p.className='favorite-empty';p.textContent='レース一覧の☆を押すと、ここからすぐ開けます。';box.appendChild(p);return}list.sort((a,b)=>a.date.localeCompare(b.date)||a.track.localeCompare(b.track,'ja')||a.number-b.number);for(const r of list){const row=document.createElement('div');row.className='favorite-row';const open=document.createElement('button');open.className='favorite-open';open.type='button';open.textContent=r.date.slice(5).replace('-','/')+' '+r.track+' '+r.number+'R';const sub=document.createElement('small');sub.textContent=r.name;open.appendChild(sub);open.addEventListener('click',()=>{openRace(r.date,r.track,r);window.scrollTo({top:0,behavior:'smooth'})});const star=document.createElement('button');star.className='favorite-star';star.type='button';star.textContent='★';star.setAttribute('aria-label',r.track+r.number+'Rをお気に入りから解除');star.addEventListener('click',()=>toggleFavorite(r));row.append(open,star);box.appendChild(row)}}
 renderFavorites();
@@ -249,7 +249,7 @@ function showDay(d){
     const title=document.createElement('button');
     title.appendChild(raceHeading(race.number,race.name,true));
     title.addEventListener('click',()=>openRace(iso(d),activeTrack,race));
-    if(FAVORITE_DATES.has(iso(d))){const star=document.createElement('button');star.type='button';star.className='favorite-star';const favorite={date:iso(d),track:activeTrack,number:race.number,name:race.name};star.textContent=hasFavorite(favorite)?'★':'☆';star.setAttribute('aria-label',(hasFavorite(favorite)?'お気に入り解除: ':'お気に入り追加: ')+activeTrack+race.number+'R');star.addEventListener('click',()=>toggleFavorite(favorite));row.appendChild(star)}
+    if(validFavoriteDate(iso(d))){const star=document.createElement('button');star.type='button';star.className='favorite-star';const favorite={date:iso(d),track:activeTrack,number:race.number,name:race.name};star.textContent=hasFavorite(favorite)?'★':'☆';star.setAttribute('aria-label',(hasFavorite(favorite)?'お気に入り解除: ':'お気に入り追加: ')+activeTrack+race.number+'R');star.addEventListener('click',()=>toggleFavorite(favorite));row.appendChild(star)}
     row.appendChild(title);area.appendChild(row);
    }
    if(!list.length){const p=document.createElement('p');p.className='empty';const found=[...new Set(data.races.map(x=>normalizeTrack(x.track)).filter(Boolean))];p.textContent='選択中の「'+activeTrack+'」のレースは取得できませんでした。取得された競馬場: '+(found.join('・')||'なし')+'。日付・競馬場を確認して「再取得」をお試しください。';area.appendChild(p)}
