@@ -153,6 +153,14 @@ function parseJraEntries(html){
  if(entries.length<2||entries.length>18)return [];
  return entries;
 }
+async function fetchEntryHtml(code){
+ const response=await fetch('https://www.jra.go.jp/JRADB/accessD.html',{
+  method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:'CNAME='+encodeURIComponent(code),signal:AbortSignal.timeout(12000)
+ });
+ if(!response.ok)throw Error('JRA_HTTP_'+response.status);
+ return new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+}
 const JRA_PAGES = ['index.html','index2.html','index3.html','index4.html'];
 const BASE = 'https://www.jra.go.jp/keiba/baba/';
 const HEADERS = {'content-type':'application/json; charset=utf-8','access-control-allow-origin':'https://sleeping4439-tech.github.io','cache-control':'public, max-age=600'};
@@ -381,7 +389,7 @@ async function jraVerified(){
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
- if(path==='/health')return new Response(JSON.stringify({ok:true,version:25,build:'live-jra-condition-bulletin-20261101',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
+ if(path==='/health')return new Response(JSON.stringify({ok:true,version:26,build:'race-calendar-captions-live-entries-20261101',racesFix:'http-diagnostics'}),{headers:{...HEADERS,'cache-control':'no-store, max-age=0'}});
  if(path==='/diagnostics')return respond({checkedAt:new Date().toISOString(),jra:await jraDiagnostic()});
 
  if(path==='/freshness-diagnostics'){
@@ -635,23 +643,24 @@ export default {async fetch(request){
   async function discoverOfficialCode(){
    if(verified)return verified;
    if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!ALL_JRA_TRACKS.includes(track)||!Number.isInteger(number)||number<1||number>12)return '';
-   const seeds=Object.entries(VERIFIED_ENTRY_CODES).filter(([k])=>k.startsWith(date+'|')).sort(([a],[b])=>Number(b.split('|')[1]===track)-Number(a.split('|')[1]===track)).slice(0,6);
    const expectedDate=date.replace(/-/g,'');
-   const expectedVenue={札幌:'01',函館:'02',福島:'03',新潟:'04',東京:'05',中山:'06',中京:'07',京都:'08',阪神:'09',小倉:'10'}[track];
-   const expectedRace=String(number).padStart(2,'0');
+   const expectedVenue=JRA_VENUES[track];
+   function raceCode(html){
+    return [...html.matchAll(/pw01dde\d{2}(\d{2})\d{4}\d{2}\d{2}(\d{2})(\d{8})\/[0-9A-F]{2}/gi)]
+     .find(m=>m[1]===expectedVenue&&Number(m[2])===number&&m[3]===expectedDate)?.[0]||'';
+   }
+   try{
+    // Published entry index from JRA's /keiba/ menu; follow its current links.
+    const index=await fetchEntryHtml('pw01dli00/F3');
+    const direct=raceCode(index);
+    if(direct)return direct;
+    const meeting=[...index.matchAll(/pw01drl\d{2}(\d{2})\d{4}\d{2}\d{2}(\d{8})\/[0-9A-F]{2}/gi)]
+     .find(m=>m[1]===expectedVenue&&m[2]===expectedDate)?.[0];
+    if(meeting){const found=raceCode(await fetchEntryHtml(meeting));if(found)return found;}
+   }catch(e){}
+   const seeds=Object.entries(VERIFIED_ENTRY_CODES).filter(([k])=>k.startsWith(date+'|'+track+'|')).slice(0,2);
    for(const [,seed] of seeds){
-    try{
-     const page=await fetch('https://www.jra.go.jp/JRADB/accessD.html?CNAME='+encodeURIComponent(seed));
-     if(!page.ok)continue;
-     const body=new TextDecoder('shift_jis').decode(await page.arrayBuffer());
-     const matches=[...body.matchAll(/pw01dde[0-9a-zA-Z/]{20,65}/gi)].map(m=>m[0]);
-     for(const code of matches){
-      // CNAME format: pw01dde + mode(2) + venue(2) + year(4) +
-      // meeting(2) + day(2) + race(2) + date(8) + /checksum.
-      const parsed=code.match(/^pw01dde\d{2}(\d{2})\d{4}\d{2}\d{2}(\d{2})(\d{8})\/[0-9A-F]{2}$/i);
-      if(parsed&&parsed[1]===expectedVenue&&parsed[2]===expectedRace&&parsed[3]===expectedDate)return code;
-     }
-    }catch(e){}
+    try{const found=raceCode(await fetchEntryHtml(seed));if(found)return found;}catch(e){}
    }
    return '';
   }
@@ -661,9 +670,7 @@ export default {async fetch(request){
   try{
    const target=new URL(sourceUrl);
    if(target.protocol!=='https:'||target.hostname!=='www.jra.go.jp'||target.pathname!=='/JRADB/accessD.html'||!/^pw01dde[0-9a-zA-Z/]+$/i.test(target.searchParams.get('CNAME')||''))return respond({available:false,error:'invalid_official_entry_url'},400);
-   const response=await fetch(target.toString());
-   if(!response.ok)return respond({available:false,date,track,number,error:'JRA_HTTP_'+response.status,sourceUrl});
-   const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
+   const html=await fetchEntryHtml(target.searchParams.get('CNAME'));
    const entries=parseJraEntries(html);
    return respond({available:entries.length>0,date,track,number,entries,sourceUrl,error:entries.length?null:'no_entries_parsed',diagnostics:{htmlLength:html.length,rowCount:[...html.matchAll(/<tr\b/gi)].length,horseLinks:[...html.matchAll(/<a\b[^>]*>/gi)].length,pageTitle:textOnly((html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||'').slice(0,80)}});
   }catch(e){return respond({available:false,date,track,number,error:String(e),sourceUrl})}
@@ -687,27 +694,11 @@ export default {async fetch(request){
     const parsed=trs.map(tr=>[...tr[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOnly(m[1])));
     const valid=parsed.filter(c=>/^\s*(?:[1-9]|1[0-2])\s*(?:レース|R)\s*$/.test(c[0]||'')&&c.length>=3);
     if(!valid.length)continue;
-    // The JRA calendar uses venue labels such as "東京" and "第4回東京第6日",
-    // not necessarily "東京競馬場". Read the nearest heading before each table.
-    const before=stripped.slice(Math.max(0,t.index-1800),t.index);
-    const headings=[...before.matchAll(/<(?:h[1-6]|th|caption|div|p|span|strong|b)\b[^>]*>([\s\S]*?)<\/(?:h[1-6]|th|caption|div|p|span|strong|b)>/gi)]
-      .map(m=>textOnly(m[1])).filter(v=>v.length<120);
-    const venuePattern=/(?:札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉)/g;
-    const venueCandidates=headings.flatMap(v=>[...v.matchAll(venuePattern)].map(m=>m[0]));
-    const match=venueCandidates.at(-1)||[...textOnly(before).matchAll(venuePattern)].map(m=>m[0]).at(-1)||'';
-    // Venue fallback for the published October 17-18 three-track program.
-    // The calendar table order is Tokyo, Kyoto, Niigata on these dates.
-    // Keep this date-scoped; never assign venues by table order on other dates.
-    const octoberWeekend=year==='2026'&&month==='10'&&['10','11','12','17','18'].includes(day);
-    const tableNumber=diagnostics.length;
-    const orderedVenue=octoberWeekend?(['10','11','12'].includes(day)?['東京','京都']:['東京','京都','新潟'])[tableNumber]||null:null;
-    const cardText=valid.map(c=>c.join(' ')).join(' ');
-    const namedVenue=octoberWeekend
-      ? (/富士ステークス|アイビーステークス|東京ハイジャンプ/.test(cardText)?'東京'
-        : /トルマリンステークス|もみじステークス|秋華賞/.test(cardText)?'京都'
-        : /北陸ステークス|妙高特別|信越ステークス/.test(cardText)?'新潟':orderedVenue)
-      : null;
-    const track=namedVenue||(ALL_JRA_TRACKS.includes(match)?match:null);
+    // The venue belongs to this table's caption, not preceding navigation.
+    const caption=(t[0].match(/<caption\b[^>]*>([\s\S]*?)<\/caption>/i)||[])[1]||'';
+    const match=textOnly(caption);
+    const track=(match.match(/札幌|函館|福島|新潟|東京|中山|中京|京都|阪神|小倉/)||[])[0]||null;
+    if(!track)continue;
     diagnostics.push({heading:match,detectedTrack:track,rows:valid.length});
     for(const c of valid){
      const number=Number(c[0].match(/\d+/)[0]);
