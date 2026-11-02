@@ -1,11 +1,22 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-27T14:30:19.697501+00:00",
+  "updatedAt": "2026-11-02T21:16:08.363398+00:00",
   "horses": [
     {
       "horseId": "2022105519",
       "name": "マスカレードボール",
       "races": [
+        {
+          "date": "2026-11-01",
+          "name": "天皇賞(秋)(GI)",
+          "course": "東京",
+          "surface": "芝",
+          "distance": "2000",
+          "finish": "11",
+          "time": "1:57.8",
+          "last3f": "34.2",
+          "positions": "14-14-14"
+        },
         {
           "date": "2026-07-25",
           "name": "キングジョージ(GI)",
@@ -124,13 +135,13 @@
       "name": "ダノンデサイル",
       "state": "error",
       "reason": "Horse search returned 0 exact IDs; manual ID confirmation required",
-      "checkedAt": "2026-10-27T14:30:19.697469+00:00"
+      "checkedAt": "2026-11-02T21:16:08.363369+00:00"
     },
     {
       "name": "マスカレードボール",
       "state": "ok",
-      "raceCount": 10,
-      "checkedAt": "2026-10-27T14:30:10.729958+00:00"
+      "raceCount": 11,
+      "checkedAt": "2026-11-02T21:15:59.794020+00:00"
     }
   ]
 }
