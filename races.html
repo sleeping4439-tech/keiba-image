@@ -9,7 +9,8 @@ function officialUrl(date,track,num){const code=VERIFIED_CURRENT_ENTRIES[date+'|
 function makeHorseNameLink(name){const a=document.createElement('a');a.textContent=name;a.href='./yubaroku/?horseName='+encodeURIComponent(name);a.title='ゆ馬録で「'+name+'」を開く';a.style.cssText='font-weight:650;text-decoration:underline;text-decoration-color:#a2cdb4;text-underline-offset:3px';return a;}
 
 const COMPARE_COLORS=['#d45b51','#287db7','#aa7b23','#7e56b4'];
-const COMPARE_LABELS=['基礎スピード','最高速度','速度持続','運動持続','パワー'];
+const COMPARE_LABELS=['基礎スピード','最高速度','速度持続','運動持続','パワー','推進力'];
+function comparisonValues(values){return Array.isArray(values)&&[5,6].includes(values.length)&&values.every(v=>v===null||(Number.isInteger(v)&&v>=1&&v<=5))?(values.length===5?[...values,null]:values.slice()):null;}
 let compareNames=new Set();
 let cloudHorseProfiles=[];
 function savedHorseProfiles(){try{const h=JSON.parse(localStorage.getItem('yubarokuHorsesV1')||'[]');const local=Array.isArray(h)?h:[];return [...local,...cloudHorseProfiles.filter(c=>!local.some(l=>l.id===c.id))]}catch{return cloudHorseProfiles}}
@@ -25,13 +26,13 @@ async function refreshCloudHorseProfiles(){
   if(!res.ok)return;
   const rows=await res.json();
   const h=rows?.[0]?.data?.horses;
-  if(Array.isArray(h)){cloudHorseProfiles=h.filter(x=>x&&typeof x.name==='string'&&Array.isArray(x.values)&&x.values.length===5);if(compareNames.size)renderComparison()}
+  if(Array.isArray(h)){cloudHorseProfiles=h.filter(x=>x&&typeof x.name==='string'&&comparisonValues(x.values));if(compareNames.size)renderComparison()}
  }catch(e){console.warn('ゆ馬録のクラウド照合に失敗',e)}
 }
 
-function normalizeHorseName(s){return String(s||'').normalize('NFKC').replace(/[\\s\\u3000]+/g,'').trim()}
-function findSavedProfile(name){return savedHorseProfiles().find(h=>normalizeHorseName(h.name)===normalizeHorseName(name)&&Array.isArray(h.values)&&h.values.length===5&&h.values.every(v=>Number.isInteger(v)&&v>=1&&v<=5))}
-function chartPoint(level,index){const a=-Math.PI/2+index*2*Math.PI/5;return [210+Math.cos(a)*level*28,188+Math.sin(a)*level*28]}
+function normalizeHorseName(s){return String(s||'').normalize('NFKC').replace(/[\s\u3000]+/g,'').trim()}
+function findSavedProfile(name){const h=savedHorseProfiles().find(h=>normalizeHorseName(h.name)===normalizeHorseName(name)&&comparisonValues(h.values));return h?{...h,values:comparisonValues(h.values)}:null}
+function chartPoint(level,index){const a=-Math.PI/2+index*2*Math.PI/COMPARE_LABELS.length;return [210+Math.cos(a)*level*28,188+Math.sin(a)*level*28]}
 function chartPolygon(values){return values.map((v,i)=>chartPoint(v,i).join(',')).join(' ')}
 function makeSvg(tag,attrs={},textValue){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));if(textValue!==undefined)e.textContent=textValue;return e}
 function renderComparison(){
@@ -52,12 +53,21 @@ function renderComparison(){
  chart.appendChild(legend);
  if(found.length){
   const svg=makeSvg('svg',{viewBox:'0 0 420 390',role:'img','aria-label':found.map(x=>x.name+'の能力レーダーチャート').join('、')});svg.classList.add('compare-svg');
-  for(let n=1;n<=5;n++)svg.appendChild(makeSvg('polygon',{points:chartPolygon([n,n,n,n,n]),fill:'none',stroke:'#bdd1c5','stroke-width':n===5?1.5:1}));
-  for(let i=0;i<5;i++){const p=chartPoint(5,i);svg.appendChild(makeSvg('line',{x1:210,y1:188,x2:p[0],y2:p[1],stroke:'#c4d6ca'}));const q=chartPoint(6.25,i);svg.appendChild(makeSvg('text',{x:q[0],y:q[1],fill:'#476452','font-size':12,'text-anchor':'middle','dominant-baseline':'middle'},COMPARE_LABELS[i]))}
-  for(const [i,item] of found.entries()){const color=COMPARE_COLORS[i];svg.appendChild(makeSvg('polygon',{points:chartPolygon(item.profile.values),fill:color,'fill-opacity':0.13,stroke:color,'stroke-width':2.6,'stroke-linejoin':'round'}));for(let j=0;j<5;j++){const p=chartPoint(item.profile.values[j],j);svg.appendChild(makeSvg('circle',{cx:p[0],cy:p[1],r:3.2,fill:color}))}}
+  for(let n=1;n<=5;n++)svg.appendChild(makeSvg('polygon',{points:chartPolygon(COMPARE_LABELS.map(()=>n)),fill:'none',stroke:'#bdd1c5','stroke-width':n===5?1.5:1}));
+  for(let i=0;i<COMPARE_LABELS.length;i++){const p=chartPoint(5,i);svg.appendChild(makeSvg('line',{x1:210,y1:188,x2:p[0],y2:p[1],stroke:'#c4d6ca'}));const q=chartPoint(6.25,i);svg.appendChild(makeSvg('text',{x:q[0],y:q[1],fill:'#476452','font-size':12,'text-anchor':'middle','dominant-baseline':'middle'},COMPARE_LABELS[i]))}
+  for(const [i,item] of found.entries()){
+   const color=COMPARE_COLORS[i],values=item.profile.values;
+   if(values.every(v=>v!==null))svg.appendChild(makeSvg('polygon',{points:chartPolygon(values),fill:color,'fill-opacity':0.13,stroke:color,'stroke-width':2.6,'stroke-linejoin':'round'}));
+   for(let j=0;j<COMPARE_LABELS.length;j++){
+    if(values[j]===null)continue;
+    const p=chartPoint(values[j],j),next=(j+1)%COMPARE_LABELS.length;
+    if(values.some(v=>v===null)&&values[next]!==null){const q=chartPoint(values[next],next);svg.appendChild(makeSvg('line',{x1:p[0],y1:p[1],x2:q[0],y2:q[1],stroke:color,'stroke-width':2.6}));}
+    svg.appendChild(makeSvg('circle',{cx:p[0],cy:p[1],r:3.2,fill:color}));
+   }
+  }
   chart.appendChild(svg);
  }
- status.replaceChildren();if(missing.length){const p=document.createElement('p');p.textContent='ゆ馬録に未登録、またはこの端末に未読込：'+missing.map(x=>x.name).join('、');status.appendChild(p);const a=document.createElement('a');a.href='./yubaroku/?horseName='+encodeURIComponent(missing[0].name);a.textContent='ゆ馬録で確認する ↗';status.appendChild(a)}
+ status.replaceChildren();const unrated=found.filter(x=>x.profile.values.some(v=>v===null));if(unrated.length){const p=document.createElement('p');p.textContent='未設定の項目は点・線を表示していません：'+unrated.map(x=>x.name).join('、');status.appendChild(p)}if(missing.length){const p=document.createElement('p');p.textContent='ゆ馬録に未登録、またはこの端末に未読込：'+missing.map(x=>x.name).join('、');status.appendChild(p);const a=document.createElement('a');a.href='./yubaroku/?horseName='+encodeURIComponent(missing[0].name);a.textContent='ゆ馬録で確認する ↗';status.appendChild(a)}
  if(!found.length){const p=document.createElement('p');p.textContent='比較するには、ゆ馬録に馬を登録し、必要に応じてクラウドから読み込んでください。';status.appendChild(p)}
 }
 function resetComparison(){compareNames.clear();$('comparePanel').hidden=true}
