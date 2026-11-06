@@ -189,4 +189,4 @@ function downloadText(filename,text,type){const blob=new Blob(['\ufeff'+text],{t
 $('exportCsv').onclick=()=>{const head=['馬ID','馬名','基礎スピード','最高速度','速度持続','運動持続','パワー','推進力','特性JSON','メモ'];const quote=x=>'"'+String(x??'').replace(/"/g,'""')+'"';const rows=[head,...horses.map(h=>[h.id,h.name,...h.values,JSON.stringify(h.traits),h.memo])];downloadText('yubaroku-'+new Date().toISOString().slice(0,10)+'.csv',rows.map(row=>row.map(quote).join(',')).join('\r\n'),'text/csv;charset=utf-8')};
 window.addEventListener('beforeunload',e=>{if(cloudReady&&JSON.stringify(horses)!==savedSnapshot){e.preventDefault();e.returnValue=''}});
 // Auth state is initialized asynchronously by initCloudAuth().
-</script></body></html>
+</script><script src="./race-batch.js"></script></body></html>
