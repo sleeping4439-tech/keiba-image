@@ -697,7 +697,8 @@ function renderJRA(){
  $('jraMoistureFinish').textContent='G前 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureFinish)?row.moistureFinish.toFixed(1)+'%':'—');
  $('jraMoistureCorner').textContent='4角 '+(valid&&moistureDate===date&&Number.isFinite(row.moistureCorner)?row.moistureCorner.toFixed(1)+'%':'—');
  // A condition bulletin is not automatically valid for earlier measurement dates.
- $('jraCondition').textContent=valid&&date===(selected?.date||latestDate)&&x.conditionObservedAt===date?(x.condition==='稍重'?'稍':x.condition):'—';
+ const datedCondition=selected&&selected.date===date&&['良','稍重','重','不良','稍'].includes(selected.condition)?selected.condition:(x.conditionObservedAt===date?x.condition:null);
+ $('jraCondition').textContent=valid&&['良','稍重','重','不良','稍'].includes(datedCondition)?(datedCondition==='稍重'?'稍':datedCondition):'—';
  const meta=courseMeta[state.track]||(courseMeta[state.track]={courseDirection:['東京','新潟','中京'].includes(state.track)?'左':'右'});
  meta.meetingNumber=valid&&Number.isInteger(x.meetingNumber)?x.meetingNumber:null;
  meta.dayNumber=valid&&Number.isInteger(x.meetingDay)?x.meetingDay:null;
