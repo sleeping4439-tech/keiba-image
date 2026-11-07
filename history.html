@@ -15,7 +15,7 @@
 <button class="primary" id="save">この日の分析を保存</button><div id="status" class="status" role="status"></div></section></section>
 </main>
 <script type="module">
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import {createSharedClient} from './shared-auth.js';
 const CONFIG={url:'https://wsjeeoctwojtgorgaboa.supabase.co',anonKey:'sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w'}; // Supabase project URL and publishable/anon key (never service_role)
 const $=id=>document.getElementById(id);
 const configured=CONFIG.url.startsWith('https://')&&CONFIG.anonKey.length>20;
@@ -23,7 +23,7 @@ const levels=['超高速','高速','標準','やや遅','遅'];
 $('clock').innerHTML+=[...levels].map(v=>'<option>'+v+'</option>').join('');
 $('date').value=new Date().toLocaleDateString('sv-SE');
 if(!configured){$('setup').classList.remove('hidden');}else{
-const db=createClient(CONFIG.url,CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const db=createSharedClient(CONFIG.url,CONFIG.anonKey);
 let user=null, records=[];
 const TRACKS=['札幌','函館','福島','新潟','東京','中山','中京','京都','阪神','小倉'];
 for(const track of TRACKS){const o=document.createElement('option');o.value=track;o.textContent=track;$('historyTrack').append(o)}
@@ -138,7 +138,7 @@ $('login').onclick=async()=>{const {error}=await db.auth.signInWithOAuth({provid
 $('logout').onclick=async()=>{await db.auth.signOut();await sync(null)};
 $('reload').onclick=load;
 $('save').onclick=async()=>{if(!user)return;const date=$('date').value,track=$('track').value;if(!/^20\d{2}-\d{2}-\d{2}$/.test(date))return msg('日付を確認してください',true);const old=records.find(r=>r.race_date===date&&r.track===track);const analysis={...(old?.analysis||{}),clock:$('clock').value,memo:$('analysis').value,loadBySegment:diagramLoad,grip:diagramGrip};const payload={user_id:user.id,race_date:date,track,analysis,jra_data:old?.jra_data||{}};$('save').disabled=true;const {error}=await db.from('track_records').upsert(payload,{onConflict:'user_id,race_date,track'});$('save').disabled=false;if(error)return msg('保存に失敗しました: '+error.message,true);msg('保存しました');await load()};
-setDiagram(null,null);db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')sync(null)});
+setDiagram(null,null);db.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')sync(null);else if(event==='SIGNED_IN'&&session?.user?.id!==user?.id)setTimeout(()=>sync(session),0)});
 const {data:{session}}=await db.auth.getSession();await sync(session);
 }
 </script></body></html>

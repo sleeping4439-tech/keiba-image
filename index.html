@@ -34,7 +34,7 @@
 }
 /* 競馬場別メモ */
 .memoArea{margin-top:22px;padding-top:18px;border-top:1px solid #e7e7e7}
-.memoArea label{display:block;font-weight:750;margin-bottom:10px}
+.memo-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}.memo-actions button{font:inherit;font-size:13px;padding:9px 12px;border:1px solid #bddac5;border-radius:8px;background:#f2f8f3;color:#247448;cursor:pointer}.memo-actions button:disabled{opacity:.5;cursor:default}.memo-actions button[hidden]{display:none}#memoSave{background:#247448;color:#fff}#memoReload,#memoLogout{padding:8px 0;border:0;background:transparent;text-decoration:underline;font-size:12px}.memoArea label{display:block;font-weight:750;margin-bottom:10px}
 .memoArea textarea{display:block;width:100%;min-height:115px;resize:vertical;border:1px solid #cfd7d0;border-radius:10px;padding:12px;font:inherit;line-height:1.6;background:#fff;color:#242424}
 .memoArea textarea:focus{outline:2px solid #80b995;outline-offset:1px}
 .memoArea small{display:block;margin-top:6px;color:#888;font-size:11px}
@@ -168,7 +168,7 @@
 <section class="panel" id="controlsPanel"><div class="line clockControlRow"><div class="heading">時計レベル</div><div class="clockActionGroup"><div class="selectWrap"><button id="clockButton" class="selectButton" aria-expanded="false"><span id="clockValue">超高速</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block;flex:none"><path d="m6 9 6 6 6-6"/></svg></button><div class="menu" id="clockMenu" hidden></div></div><button type="button" id="recordInfoButton" aria-label="当日のレースラップを表示" aria-haspopup="dialog" title="当日のレースラップ" class="clockMemoButton recordInfoButton"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5V12l3.5 2"/></svg></button><button type="button" class="clockMemoButton" id="clockMemoButton" aria-label="時計レベルのメモを開く" title="日付別メモ"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg></button></div></div>
 <div class="divider"></div><div class="line"><div class="heading">負荷設定</div><div class="segments" id="segments"><button class="segment active" data-segment="道中">道中</button><button class="segment" data-segment="4角">4角</button><button class="segment" data-segment="直線">直線</button></div></div>
 <div id="editor"><div class="sliderRow"><label for="all">一括</label><input id="all" type="range" min="0" max="4" value="0"><output id="allOut">軽</output></div><div id="sliders"></div><div class="grips" id="grips"><strong>直線グリップ</strong><label><input type="checkbox" data-lane="内"> 内</label><label><input type="checkbox" data-lane="中"> 中</label><label><input type="checkbox" data-lane="外"> 外</label></div></div>
-<div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><div class="memo-footer"><small>この端末・ブラウザに自動保存されます</small><a class="memo-history-link" href="./history.html">馬場履歴 →</a></div><div class="memo-nav-buttons"><a href="./races.html">レース一覧 →</a><a href="./yubaroku/">ゆ馬録 →</a></div></div>
+<div class="memoArea"><label for="trackMemo">メモ（<span id="memoTrack">東京</span>）</label><textarea disabled id="trackMemo" placeholder="馬場の傾向や気づいたことを記録"></textarea><div class="memo-actions"><button type="button" id="memoLogin">Googleでログイン</button><button type="button" id="memoSave" disabled>メモをクラウドに保存</button><button type="button" id="memoReload" disabled>保存済みを再読込</button><button type="button" id="memoLogout" hidden>ログアウト</button></div><div class="memo-footer"><small id="memoStatus" role="status">ログイン状態を確認中…</small><a class="memo-history-link" href="./history.html">馬場履歴 →</a></div><div class="memo-nav-buttons"><a href="./races.html">レース一覧 →</a><a href="./yubaroku/">ゆ馬録 →</a></div></div>
 <div class="note">※中央のクッション値・芝含水率・馬場状態・日付はJRA公式取得データ。取得できない場合は「—」と表示します。開催・天気・使用コースはJRA公式データから取得できた場合のみ表示。使用コースの使用日数は検証中。風はOpen-Meteoの近傍推定値です。時計・負荷・グリップ・メモは手動設定です。</div></section></main>
 <dialog id="recordInfoDialog" aria-labelledby="recordInfoTitle" style="border:1px solid #dce6de;border-radius:14px;max-width:min(92vw,460px);width:100%;padding:22px;box-shadow:0 10px 40px #0002"><h2 id="recordInfoTitle" style="margin:0 0 12px;font-size:19px">当日のレースラップ</h2><div id="lapPeriodTabs" style="display:flex;gap:8px;margin:0 0 14px"><button type="button" data-lap-period="current" aria-pressed="true" style="border:1px solid #65a779;border-radius:8px;background:#eaf5ed;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">当日ラップ</button><button type="button" data-lap-period="average" aria-pressed="false" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:8px 12px;font-weight:700;cursor:pointer">過去5年平均</button></div><button type="button" id="lapRefresh" style="border:1px solid #d5ded7;border-radius:8px;background:#fff;color:#245b3b;padding:6px 12px;margin:0 0 12px;font-weight:700;cursor:pointer">↻ 更新</button><div id="recordInfoBody" style="font-size:14px;line-height:1.8">当日のレースラップを確認します。</div><p style="font-size:12px;color:#777;margin:12px 0">※レース終了後に取得できたラップを表示します。取得できない場合は未取得と表示します。</p><button type="button" id="recordInfoClose" style="border:1px solid #ddd;border-radius:8px;background:#fff;padding:8px 20px;cursor:pointer">閉じる</button></dialog><dialog id="clockMemoDialog" class="clockMemoDialog" aria-labelledby="clockMemoTitle"><h2 id="clockMemoTitle">時計レベルのメモ</h2><p id="clockMemoDate"></p><textarea id="clockMemoText" placeholder="時計レベルの根拠や馬場傾向を記録"></textarea><p style="margin-top:8px">この端末・ブラウザに自動保存されます</p><button type="button" class="memoClose" id="clockMemoClose">閉じる</button></dialog>
 <script>
@@ -385,27 +385,24 @@ $('clockMemoButton').addEventListener('click',()=>{updateClockMemo();$('clockMem
 $('clockMemoClose').addEventListener('click',()=>$('clockMemoDialog').close());
 $('clockMemoText').addEventListener('input',e=>{try{localStorage.setItem(clockMemoKey(state.track,activeClockMemoDate()),e.target.value)}catch(err){}$('clockMemoButton').classList.toggle('hasMemo',!!e.target.value.trim());document.dispatchEvent(new CustomEvent('yubaba-analysis-changed',{detail:{track:state.track}}))});
 updateClockMemo();
-const memoByTrack=Object.fromEntries(ALL_JRA_TRACKS.map(track=>[track,'']));
-for(const track of Object.keys(memoByTrack)){
- try{memoByTrack[track]=localStorage.getItem('keiba-memo-'+track)||''}catch(e){}
-}
+// Drafts are isolated by account, track and selected date. Saving is explicit.
+const memoDrafts=new Map();
+let memoOwner=null;
+function memoContext(){const date=activeClockMemoDate(),track=state.track;return {date,track,key:(memoOwner||'guest')+':'+date+':'+track}}
 function renderMemo(){
- $('memoTrack').textContent=state.track;
- $('trackMemo').value=memoByTrack[state.track]||'';
+ const c=memoContext(),parts=c.date.split('-');
+ $('memoTrack').textContent=c.track+' '+Number(parts[1])+'/'+Number(parts[2]);
+ const draft=memoDrafts.get(c.key);
+ $('trackMemo').value=draft?.value||'';
+ $('trackMemo').disabled=!memoOwner||!draft?.loaded;
+ $('memoSave').disabled=!memoOwner||!draft?.loaded||!!draft?.saving;
+ $('memoReload').disabled=!memoOwner||!!draft?.saving;
+ $('memoStatus').textContent=!memoOwner?'共通ログイン後、保存ボタンで保存できます':draft?.message||'メモを読み込み中…';
+ document.dispatchEvent(new CustomEvent('yubaba-memo-view'));
 }
-// 入力中は画面内の下書きだけ更新。フォーカスが外れたときに一度だけ保存する。
 $('trackMemo').addEventListener('input',e=>{
- memoByTrack[state.track]=e.target.value;
-});
-$('trackMemo').addEventListener('blur',e=>{
- const track=state.track;
- const value=e.target.value;
- memoByTrack[track]=value;
- let previous='';
- try{previous=localStorage.getItem('keiba-memo-'+track)||''}catch(err){}
- if(previous===value)return;
- try{localStorage.setItem('keiba-memo-'+track,value)}catch(err){}
- document.dispatchEvent(new CustomEvent('yubaba-analysis-changed',{detail:{track}}));
+ const draft=memoDrafts.get(memoContext().key);if(!draft)return;
+ draft.value=e.target.value;draft.dirty=true;draft.message='未保存の変更があります';$('memoStatus').textContent=draft.message;
 });
 renderMemo();
 // Future Worker payload contract. Demo values only; never claim live updates.
@@ -710,6 +707,7 @@ function renderJRA(){
  renderCourseMeta();
  $('infoDate').textContent=valid?jraDateLabel(date):'—';
  memoDateByTrack[state.track]=valid&&date?date:localDate();
+ renderMemo();
  updateClockMemo();
  // SVG arrow is positioned immediately after the actual date text, without shifting the layout.
  const width=$('infoDate').getComputedTextLength();
@@ -780,8 +778,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshJRA
 // Each edited track is saved to the signed-in owner's private history immediately.
 // The date is captured at edit time (JST), so a closed browser does not prevent
 // yesterday's record from surviving midnight. No unedited tracks are uploaded.
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-const db=createClient('https://wsjeeoctwojtgorgaboa.supabase.co','sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+import {createSharedClient} from './shared-auth.js';
+const db=createSharedClient('https://wsjeeoctwojtgorgaboa.supabase.co','sb_publishable_6yPSuBbxzlgq4DJmHKo-bw_QvV0Wu6w');
 const queueKey='yubaba-pending-analysis-v1';
 const status=document.createElement('div');
 status.style.cssText='position:fixed;right:14px;bottom:14px;z-index:1000;max-width:320px;padding:9px 12px;border:1px solid #cad9cc;border-radius:9px;background:#f9fcf9;color:#294633;font:12px/1.5 sans-serif;box-shadow:0 2px 10px #0001;display:none';
@@ -806,7 +804,8 @@ async function flush(){
   for(const [key,item] of [...pending]){
    const {data:existing,error:readError}=await db.from('track_records').select('analysis,jra_data').eq('user_id',user.id).eq('race_date',item.date).eq('track',item.track).maybeSingle();
    if(readError){report('履歴未同期：'+readError.message);break;}
-   const analysis={...(existing?.analysis||{}),...(item.analysis||{})};
+   const edits={...(item.analysis||{})};delete edits.memo;
+   const analysis={...(existing?.analysis||{}),...edits};
    const jra_data={...(existing?.jra_data||{}),...(item.jra_data||{})};
    const {error}=await db.from('track_records').upsert({user_id:user.id,race_date:item.date,track:item.track,analysis,jra_data},{onConflict:'user_id,race_date,track'});
    if(error){report('履歴未同期：'+error.message);break;}
@@ -824,7 +823,7 @@ function recordChange(track){
  const load=settings.loadByTrack?.[track],grip=settings.gripByTrack?.[track];
  if(!load||!Array.isArray(grip))return;
  const memo=localStorage.getItem('keiba-clock-memo-v1:'+track+':'+date)||'';
- const analysis={clock:settings.clockByTrack?.[track]||'',memo:localStorage.getItem('keiba-memo-'+track)||'',clockMemo:memo,loadBySegment:load,grip};
+ const analysis={clock:settings.clockByTrack?.[track]||'',clockMemo:memo,loadBySegment:load,grip};
  const item={date,track,analysis};
  pending.set(key,{...(pending.get(key)||{}),...item,jra_data:pending.get(key)?.jra_data});persist();report('履歴を保存待ち…');flush();
 }
@@ -839,6 +838,60 @@ document.addEventListener('yubaba-jra-data',e=>{
 window.addEventListener('online',flush);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
 db.auth.onAuthStateChange((event)=>{if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')setTimeout(flush,0)});
+
+async function loadMemo(){
+ if(!memoOwner)return;
+ const c=memoContext();if(memoDrafts.has(c.key))return;
+ const draft={value:'',loaded:false,dirty:false,message:'メモを読み込み中…'};
+ memoDrafts.set(c.key,draft);
+ try{
+  const {data,error}=await db.from('track_records').select('analysis').eq('user_id',memoOwner).eq('race_date',c.date).eq('track',c.track).maybeSingle();
+  if(error)throw error;
+  draft.value=data?.analysis?.memo??'';
+  draft.message='クラウド保存済み';
+  if(data?.analysis?.memo==null){
+   let legacy='';try{if(!localStorage.getItem('keiba-memo-imported:'+c.track))legacy=localStorage.getItem('keiba-memo-'+c.track)||''}catch{}
+   if(legacy){draft.value=legacy;draft.dirty=true;draft.message='以前の端末メモです。日付を確認して保存してください'}
+   else draft.message='この日のメモはまだ保存されていません';
+  }
+  draft.loaded=true;
+ }catch(e){draft.message='読込に失敗しました。「保存済みを再読込」で再試行してください';}
+ if(memoContext().key===c.key)renderMemo();
+}
+document.addEventListener('yubaba-memo-view',loadMemo);
+$('memoReload').onclick=()=>{const c=memoContext(),draft=memoDrafts.get(c.key);if(draft?.dirty&&!confirm('未保存の変更を破棄して、保存済みのメモを読み込みますか？'))return;memoDrafts.delete(c.key);renderMemo()};
+$('memoLogin').onclick=async()=>{const {error}=await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)$('memoStatus').textContent='ログインに失敗しました：'+error.message};
+$('memoLogout').onclick=async()=>{if([...memoDrafts.values()].some(d=>d.dirty)&&!confirm('未保存のメモがあります。ログアウトしますか？'))return;const {error}=await db.auth.signOut();if(error)$('memoStatus').textContent='ログアウトに失敗しました：'+error.message};
+$('memoSave').onclick=async()=>{
+ const c=memoContext(),owner=memoOwner,draft=memoDrafts.get(c.key);
+ if(!owner||!draft?.loaded||draft.saving)return;
+ const value=draft.value;draft.saving=true;draft.message='保存中…';renderMemo();
+ let locked=false;
+ try{
+  // Serialize with automatic JRA/history writes to preserve both parts of the row.
+  while(busy)await new Promise(resolve=>setTimeout(resolve,50));
+  busy=true;locked=true;
+  const {data:{user},error:authError}=await db.auth.getUser();
+  if(authError||user?.id!==owner||memoOwner!==owner)throw Error('ログイン状態が変わりました。再読込してください');
+  const {data:old,error:readError}=await db.from('track_records').select('analysis,jra_data').eq('user_id',owner).eq('race_date',c.date).eq('track',c.track).maybeSingle();
+  if(readError)throw readError;
+  const {error}=await db.from('track_records').upsert({user_id:owner,race_date:c.date,track:c.track,analysis:{...(old?.analysis||{}),memo:value},jra_data:old?.jra_data||{}},{onConflict:'user_id,race_date,track'});
+  if(error)throw error;
+  draft.dirty=draft.value!==value;draft.message=draft.dirty?'未保存の変更があります':'クラウドに保存しました';
+  try{localStorage.setItem('keiba-memo-imported:'+c.track,'1')}catch{}
+ }catch(e){draft.message='保存に失敗しました：'+e.message;draft.dirty=true}
+ finally{if(locked)busy=false;draft.saving=false;if(memoContext().key===c.key)renderMemo();flush()}
+};
+function syncMemoSession(session){
+ const next=session?.user?.id||null;
+ if(next!==memoOwner){memoDrafts.clear();memoOwner=next}
+ $('memoLogin').hidden=!!next;$('memoLogout').hidden=!next;
+ renderMemo();
+}
+db.auth.onAuthStateChange((event,session)=>{setTimeout(()=>syncMemoSession(session),0)});
+db.auth.getSession().then(({data,error})=>{if(error)$('memoStatus').textContent='ログイン状態を確認できません';else syncMemoSession(data.session)});
+window.addEventListener('beforeunload',e=>{if([...memoDrafts.values()].some(d=>d.dirty)){e.preventDefault();e.returnValue=''}});
+
 if(pending.size)report('履歴の保存待ち '+pending.size+'件');
 flush();
 retryTimer=setInterval(flush,60000);
