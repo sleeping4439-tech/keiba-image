@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import fitz
 
 TRACKS={'sapporo':'札幌','hakodate':'函館','fukushima':'福島','niigata':'新潟','tokyo':'東京','nakayama':'中山','chukyo':'中京','kyoto':'京都','hanshin':'阪神','kokura':'小倉'}
-PARSER_VERSION=4
+PARSER_VERSION=5
 HEADER=re.compile(r'\d{5}(\d{1,2})月(\d{1,2})日.{0,15}?\(([^)]+)\)第(\d+)日第(\d+)競走')
 
 def parse_pdf(content,source,expected_year,expected_track):
@@ -65,8 +65,21 @@ def parse_pdf(content,source,expected_year,expected_track):
         if last3f is not None and not 25<=last3f<=60: last3f=None
         if last3f is None: issues.append({'number':int(number),'error':'official_last3f_not_found'})
         races.append({'date':date,'track':track,'number':int(number),'surface':'芝','distance':distance,'raceClass':race_class,'winningSeconds':winning,'last3f':last3f,'sourceUrl':source})
-    if len(seen)!=12: issues.append({'error':'race_header_count','count':len(seen)})
-    return {'sourceUrl':source,'date':date,'track':expected_track,'raceHeaders':len(seen),'races':races,'issues':issues,'sha256':hashlib.sha256(content).hexdigest()}
+    # Only use reviewed transcriptions for the exact PDF bytes inspected.
+    reviewed_path=Path(__file__).with_name('historical-reviewed-records.json')
+    reviewed=json.loads(reviewed_path.read_text()) if reviewed_path.exists() else []
+    for correction in reviewed:
+        if correction['sourceUrl']!=source: continue
+        if correction['sha256']!=hashlib.sha256(content).hexdigest():
+            issues.append({'error':'reviewed_source_changed'});continue
+        for race in correction['races']:
+            if str(race['number']) not in seen:
+                if race['track']!=expected_track or not race['date'].startswith(str(expected_year)):raise ValueError('reviewed_identity_mismatch')
+                races.append({**race,'sourcePage':correction['sourcePage'],'extraction':'visually_verified_pdf'})
+                seen.add(str(race['number']))
+    cancelled=set(re.findall(r'競走の中止第(\d+)競走',text))
+    if len(seen|cancelled)!=12: issues.append({'error':'race_header_count','count':len(seen),'cancelled':sorted(cancelled)})
+    return {'sourceUrl':source,'date':date,'track':expected_track,'raceHeaders':len(seen),'cancelledRaces':sorted(int(x) for x in cancelled),'races':races,'issues':issues,'sha256':hashlib.sha256(content).hexdigest()}
 
 def download(url,path):
     p=subprocess.run(['curl','--fail','--silent','--show-error','--location','--max-time','45','--retry','2','--retry-delay','2',url,'-o',str(path)],capture_output=True,text=True)

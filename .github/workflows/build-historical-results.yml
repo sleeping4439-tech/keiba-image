@@ -4,9 +4,10 @@ on:
   push:
     paths:
       - scripts/build-historical-results.py
+      - scripts/historical-reviewed-records.json
       - .github/workflows/build-historical-results.yml
   schedule:
-    - cron: '25 18 2 * *'
+    - cron: '25 18 * * *'
 permissions:
   contents: write
 concurrency:

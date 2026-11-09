@@ -1,0 +1,32 @@
+[
+  {
+    "sourceUrl": "https://www.jra.go.jp/datafile/seiseki/report/2023/2023-2sapporo4.pdf",
+    "sha256": "195642e985fa3e332b3edf680627cc6feaaa86f99720563ea850a88e731eadea",
+    "sourcePage": 4,
+    "verification": "Official PDF page visually transcribed and checked; numeric font on this page has no extractable Unicode mapping. No estimated values.",
+    "races": [
+      {
+        "date": "2023-08-20",
+        "track": "札幌",
+        "number": 7,
+        "surface": "芝",
+        "distance": 2000,
+        "raceClass": "1win",
+        "winningSeconds": 124.3,
+        "last3f": 37.5,
+        "sourceUrl": "https://www.jra.go.jp/datafile/seiseki/report/2023/2023-2sapporo4.pdf"
+      },
+      {
+        "date": "2023-08-20",
+        "track": "札幌",
+        "number": 8,
+        "surface": "芝",
+        "distance": 1500,
+        "raceClass": "open",
+        "winningSeconds": 92.8,
+        "last3f": 37.0,
+        "sourceUrl": "https://www.jra.go.jp/datafile/seiseki/report/2023/2023-2sapporo4.pdf"
+      }
+    ]
+  }
+]

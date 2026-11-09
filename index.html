@@ -241,7 +241,7 @@ async function renderLapPopup(forceRefresh=false){
     const labels={ok:'取得済み',no_meeting:'対象期間の開催なし',partial:'一部未取得・解析エラー',failed:'取得失敗'};
     line.textContent=c.year+'年（'+c.start.slice(5)+'〜'+c.end.slice(5)+'）：'+(labels[c.status]||c.status)+'／成績表 '+c.documentCount+'件';
     body.append(line);
-    if(c.issues?.length){const warning=document.createElement('p');warning.style.cssText='font-size:12px;color:#9a5a24;margin:4px 0';warning.textContent='原因：'+[...new Set(c.issues.map(x=>x.error))].join('・')+'（'+c.issueCount+'件）。「更新」で再取得できます。';body.append(warning)}
+    if(c.issues?.length){const warning=document.createElement('p');warning.style.cssText='font-size:12px;color:#9a5a24;margin:4px 0';warning.textContent='原因：'+[...new Set(c.issues.map(x=>({race_header_count:'成績表の一部レースを読み取れません',winning_time_not_verified:'勝ち時計と公式ラップの照合に失敗',official_laps_not_found:'公式ラップを読み取れません',official_last3f_not_found:'公式上り3Fが未取得',class_not_found:'クラスを判定できません',reviewed_source_changed:'確認済み成績表が更新されています'}[x.error]||x.error)))].join('・')+'（'+c.issueCount+'件）。「更新」で再取得できます。';body.append(warning)}
    }
    const rows=Array.isArray(data.averages)?data.averages.filter(r=>r.surface==='芝'):[];
    let currentRaces=[];
