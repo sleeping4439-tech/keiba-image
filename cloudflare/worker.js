@@ -386,6 +386,65 @@ async function jraVerified(){
 }
 
 // auto-deploy-smoke-20261014: trigger Cloudflare Builds without changing runtime behavior
+const HISTORICAL_DATA_VERSION='official-pdf-v1';
+const HISTORICAL_CLASSES=['newcomer','maiden','1win','2win','3win','open'];
+function historicalWindow(date,year){
+ const month=Number(date.slice(5,7)),day=Math.min(Number(date.slice(8,10)),new Date(Date.UTC(year,month,0)).getUTCDate());
+ const center=Date.UTC(year,month-1,day),dayMs=86400000;
+ return {year,start:new Date(Math.max(Date.UTC(year,0,1),center-14*dayMs)).toISOString().slice(0,10),end:new Date(Math.min(Date.UTC(year,11,31),center+14*dayMs)).toISOString().slice(0,10)};
+}
+function aggregateHistorical(documents,track,window){
+ const groups=new Map(),seen=new Set(),issues=[],sourceDocuments=[];
+ let documentCount=0;
+ for(const doc of documents){
+  if(doc.track!==track)continue;
+  if(doc.error&&!doc.date){issues.push({sourceUrl:doc.sourceUrl,error:doc.error});continue}
+  if(!doc.date||doc.date<window.start||doc.date>window.end)continue;
+  sourceDocuments.push(doc.sourceUrl);documentCount++;
+  if(doc.error)issues.push({sourceUrl:doc.sourceUrl,error:doc.error});
+  for(const issue of doc.issues||[])issues.push({sourceUrl:doc.sourceUrl,date:doc.date,...issue});
+  for(const race of doc.races||[]){
+   if(race.track!==track||race.date!==doc.date||race.surface!=='芝'||!HISTORICAL_CLASSES.includes(race.raceClass)||!Number.isFinite(race.winningSeconds)||race.winningSeconds<=0||!Number.isInteger(race.distance))continue;
+   const id=race.date+'|'+track+'|'+race.number;if(seen.has(id))continue;seen.add(id);
+   const key=race.raceClass+'|'+race.distance;
+   const g=groups.get(key)||{raceClass:race.raceClass,surface:'芝',distance:race.distance,count:0,winningSum:0,last3fSum:0,last3fCount:0,minWinningSeconds:Infinity,years:new Set()};
+   g.count++;g.winningSum+=race.winningSeconds;g.minWinningSeconds=Math.min(g.minWinningSeconds,race.winningSeconds);g.years.add(String(window.year));
+   if(Number.isFinite(race.last3f)){g.last3fSum+=race.last3f;g.last3fCount++}
+   groups.set(key,g);
+  }
+ }
+ return {groups:[...groups.values()],issues,documentCount,sourceDocuments};
+}
+async function historicalAverages(url){
+ const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'',requested=url.searchParams.get('year');
+ if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date||!JRA_VENUES[track])return respond({error:'invalid_date_or_track',message:'競馬場または日付が不正です。'},400);
+ const baseYear=Number(date.slice(0,4)),years=Array.from({length:5},(_,i)=>baseYear-i-1);
+ if(requested&&(!/^\d{4}$/.test(requested)||!years.includes(Number(requested))))return respond({error:'year_out_of_range',message:'対象は選択日の前年から5年間です。'},400);
+ const targetYears=requested?[Number(requested)]:years;
+ const results=await Promise.all(targetYears.map(async year=>{
+  const window=historicalWindow(date,year);
+  const source='https://raw.githubusercontent.com/sleeping4439-tech/keiba-image/main/data/historical/'+year+'.json';
+  try{
+   const response=await fetch(source+(url.searchParams.has('_refresh')?'?refresh='+Date.now():''),{signal:AbortSignal.timeout(12000),cf:{cacheTtl:300,cacheEverything:true}});
+   if(!response.ok)throw Error(response.status===404?'年度データ未作成（HTTP 404）':'年度データ取得失敗（HTTP '+response.status+'）');
+   const data=await response.json();
+   if(data.schemaVersion!==1||data.year!==year||!Array.isArray(data.documents))throw Error('年度データの形式が不正です');
+   const part=aggregateHistorical(data.documents,track,window);
+   const complete=data.indexComplete===true&&data.documents.length===data.expectedDocuments&&!part.issues.length;
+   return {...window,...part,complete,status:complete?(part.documentCount?'ok':'no_meeting'):'partial',updatedAt:data.updatedAt};
+  }catch(error){return {...window,groups:[],issues:[{error:String(error.message||error)}],complete:false,status:'failed',documentCount:0,sourceDocuments:[]}}
+ }));
+ const groups=new Map();
+ for(const result of results)for(const row of result.groups){
+  const key=row.raceClass+'|'+row.distance,g=groups.get(key)||{...row,count:0,winningSum:0,last3fSum:0,last3fCount:0,minWinningSeconds:Infinity,years:new Set()};
+  g.count+=row.count;g.winningSum+=row.winningSum;g.last3fSum+=row.last3fSum;g.last3fCount+=row.last3fCount;g.minWinningSeconds=Math.min(g.minWinningSeconds,row.minWinningSeconds);
+  for(const year of row.years)g.years.add(year);groups.set(key,g);
+ }
+ const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,last3fCount:g.last3fCount,years:[...g.years].sort(),averageWinningSeconds:g.winningSum/g.count,minWinningSeconds:g.minWinningSeconds,averageLast3f:g.last3fCount?g.last3fSum/g.last3fCount:null})).sort((a,b)=>HISTORICAL_CLASSES.indexOf(a.raceClass)-HISTORICAL_CLASSES.indexOf(b.raceClass)||a.distance-b.distance);
+ const coverage=results.map(({groups,issues,...r})=>({...r,issues:issues.slice(0,30),issueCount:issues.length}));
+ return respond({version:HISTORICAL_DATA_VERSION,date,track,complete:results.every(r=>r.complete),requestedYears:targetYears,coveredYears:results.filter(r=>r.complete).map(r=>String(r.year)).sort(),coverage,averages,source:'JRA年度別全成績（公式PDF）',last3fDefinition:'レース全体の上り3F（勝馬個別の上がりではありません）',windowDefinition:'各対象年の同月日を中心に前後14日。年境界では対象年内に限定。',error:results.every(r=>r.status==='failed')?'historical_data_unavailable':null});
+}
+
 export default {async fetch(request){
  const url=new URL(request.url);
  const path=url.pathname;
@@ -512,77 +571,7 @@ export default {async fetch(request){
   }));
   return respond({version:'2026-10-16-parser-v2',date,track,checks},200);
  }
- if(path==='/historical-lap-averages'){
-  const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
-  if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
-  const requestedYear=url.searchParams.get('year')||'';
-  if(requestedYear&&!/^(202[0-9])$/.test(requestedYear))return respond({error:'invalid_year'},400);
-  if(requestedYear&&(Number(requestedYear)>=Number(date.slice(0,4))||Number(requestedYear)<Number(date.slice(0,4))-5))return respond({error:'year_out_of_range'},400);
-  const base=new Date(date+'T00:00:00Z');
-  const dates=[];
-  for(let years=1;years<=5;years++){
-   if(requestedYear&&Number(requestedYear)!==Number(date.slice(0,4))-years)continue;
-   const start=new Date(base);
-   start.setUTCDate(start.getUTCDate()-364*years);
-   dates.push(start.toISOString().slice(0,10));
-  }
-  const groups=new Map(),coveredYears=new Set(),missing=[],diagnostics={seedCount:0,fetchSucceeded:0,parsed:0,classified:0,excludedNewcomer:0,unclassified:0};
-  const work=new Map();
-  for(const day of dates){
-   const center=new Date(day+'T00:00:00Z');
-   const candidateDays=new Set(Array.from({length:29},(_,i)=>{const d=new Date(center);d.setUTCDate(d.getUTCDate()+i-14);return d.toISOString().slice(0,10)}));
-   const seeds=Object.entries(VERIFIED_RESULT_CODES).filter(([key])=>candidateDays.has(key.slice(0,10))&&key.split('|')[1]===track);
-   if(!seeds.length)missing.push(day);
-   for(const [key,code] of seeds)work.set(code,{key,code,day:key.slice(0,10)});
-  }
-  diagnostics.seedCount=work.size;
-  diagnostics.discovered=0;
-  const processed=new Set();
-  const allowedDates=new Set([...work.values()].map(item=>item.day));
-  const addRace=(race,year)=>{
-   if(!race||race.surface!=='芝')return;
-   diagnostics.parsed++;
-   if(race.raceClass==='excluded'){diagnostics.excludedNewcomer++;return}
-   if(race.raceClass!=='lower'&&race.raceClass!=='open'){diagnostics.unclassified++;return}
-   diagnostics.classified++;
-   coveredYears.add(year);
-   const key=race.raceClass+'|'+race.surface+'|'+race.distance;
-   const group=groups.get(key)||{raceClass:race.raceClass,surface:race.surface,distance:race.distance,count:0,winningSum:0,last3fSum:0,minWinningSeconds:Infinity,years:new Set()};
-   group.count++;group.winningSum+=race.winningSeconds;group.minWinningSeconds=Math.min(group.minWinningSeconds,race.winningSeconds);group.last3fSum+=race.last3f;group.years.add(year);groups.set(key,group);
-  };
-  async function fetchBatch(items){
-   let next=0;
-   await Promise.all(Array.from({length:Math.min(12,items.length)},async()=>{
-    while(next<items.length){
-     const item=items[next++];
-     if(processed.has(item.code))continue;
-     processed.add(item.code);
-     try{
-      const response=await fetch('https://www.jra.go.jp/JRADB/accessS.html?CNAME='+encodeURIComponent(item.code),{signal:AbortSignal.timeout(6500)});
-      if(!response.ok)continue;
-      diagnostics.fetchSucceeded++;
-      const html=new TextDecoder('shift_jis').decode(await response.arrayBuffer());
-      addRace(parseOfficialLap(html,item.code,track,item.day),item.day.slice(0,4));
-      // Follow JRA-published same-date result links only. Never fabricate opaque result URLs.
-      for(const code of resultCodesInHtml(html)){
-       const info=resultCodeInfo(code);
-       if(!info||info.venue!==JRA_VENUES[track])continue;
-       const day=info.date.slice(0,4)+'-'+info.date.slice(4,6)+'-'+info.date.slice(6,8);
-       if(!allowedDates.has(day)||work.has(code))continue;
-       work.set(code,{code,day});
-       diagnostics.discovered++;
-      }
-     }catch(e){}
-    }
-   }));
-  }
-  await fetchBatch([...work.values()].slice(0,32));
-  // Worker request budget: at most 48 official page requests in total.
-  await fetchBatch([...work.values()].filter(item=>!processed.has(item.code)).slice(0,Math.max(0,48-processed.size)));
-  diagnostics.totalRequested=processed.size;
-  const averages=[...groups.values()].map(g=>({raceClass:g.raceClass,surface:g.surface,distance:g.distance,count:g.count,years:[...g.years].sort(),averageWinningSeconds:Number((g.winningSum/g.count).toFixed(2)),minWinningSeconds:Number(g.minWinningSeconds.toFixed(1)),averageLast3f:Number((g.last3fSum/g.count).toFixed(2))})).sort((a,b)=>a.surface.localeCompare(b.surface,'ja')||a.distance-b.distance);
-  return new Response(JSON.stringify({date,track,requestedYear:requestedYear||null,comparisonDates:dates,coveredYears:[...coveredYears].sort(),complete:false,missingDates:missing,diagnostics,averages,notice:'公式結果URLを確認できた芝レースのみ集計。全開催レースの収集は未完了のため暫定値です。'}),{headers:{...HEADERS,'cache-control':'public, max-age=900'}});
- }
+ if(path==='/historical-lap-averages')return historicalAverages(url);
  if(path==='/laps-by-day'){
   const date=url.searchParams.get('date')||'',track=url.searchParams.get('track')||'';
   if(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||!JRA_VENUES[track])return respond({error:'invalid_date_or_track'},400);
@@ -754,3 +743,4 @@ export default {async fetch(request){
 }
  return respond({ok:false,error:'not_found'},404);
 }};
+

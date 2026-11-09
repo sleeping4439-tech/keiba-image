@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import fitz
 
 TRACKS={'sapporo':'札幌','hakodate':'函館','fukushima':'福島','niigata':'新潟','tokyo':'東京','nakayama':'中山','chukyo':'中京','kyoto':'京都','hanshin':'阪神','kokura':'小倉'}
-PARSER_VERSION=2
+PARSER_VERSION=3
 HEADER=re.compile(r'\d{5}(\d{1,2})月(\d{1,2})日.{0,15}?\(([^)]+)\)第(\d+)日第(\d+)競走')
 
 def parse_pdf(content,source,expected_year,expected_track):
@@ -30,7 +30,7 @@ def parse_pdf(content,source,expected_year,expected_track):
         section=text[m.end():matches[i+1].start() if i+1<len(matches) else len(text)]
         heading=section.split('本賞')[0]
         # Flat turf only: jumping races can also mention turf.
-        if '障害' in heading or not re.search(r'\(芝[・･、,)]',heading): continue
+        if re.search(r'障害|ジャンプ|J・G',heading) or not re.search(r'\(芝[・･、,)]',heading): continue
         distance=re.search(r'([1-4],[0-9]{3})',heading)
         if not distance: issues.append({'number':int(number),'error':'distance_not_found'});continue
         distance=int(distance[1].replace(',',''))
@@ -39,8 +39,10 @@ def parse_pdf(content,source,expected_year,expected_track):
         elif re.search(r'3勝クラス|1600万(?:円)?以下',heading): race_class='3win'
         elif re.search(r'2勝クラス|1000万(?:円)?以下',heading): race_class='2win'
         elif re.search(r'1勝クラス|500万(?:円)?以下',heading): race_class='1win'
-        elif re.search(r'オープン|除未出走馬および未勝利馬|除未出走馬及び未勝利馬',heading): race_class='open'
+        elif re.search(r'オープン|\((?:GI{1,3}|L)\)|除未出走馬および未勝利馬|除未出走馬及び未勝利馬',heading): race_class='open'
         elif '未勝利' in heading: race_class='maiden'
+        # Official eligibility specifies age only, without a wins/earnings restriction.
+        elif re.search(r'[234]歳(?:以上)?[,;]',heading) and '負担重量' in heading: race_class='open'
         else: issues.append({'number':int(number),'error':'class_not_found','heading':heading[:180]});continue
         lap=re.search(r'ハロンタイム((?:\d{1,2}\.\d[―ー−–－-])+\d{1,2}\.\d)',section)
         if not lap: issues.append({'number':int(number),'error':'official_laps_not_found'});continue

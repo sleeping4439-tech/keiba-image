@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+const code=fs.readFileSync(new URL('../cloudflare/worker.js',import.meta.url),'utf8');
+const start=code.indexOf("const HISTORICAL_DATA_VERSION="),end=code.indexOf('export default',start);
+const context=vm.createContext({URL,Date,Number,Map,Set,Promise,AbortSignal,JRA_VENUES:{東京:'05',札幌:'01'},respond:(data,status=200)=>({data,status})});
+vm.runInContext(code.slice(start,end),context);
+const race=(number,winning,last3f)=>({date:'2025-11-08',track:'東京',number,surface:'芝',distance:1600,raceClass:'1win',winningSeconds:winning,last3f});
+const doc={track:'東京',date:'2025-11-08',sourceUrl:'official.pdf',issues:[],races:[race(1,94,34),race(2,96,null)]};
+const aggregate=()=>context.aggregateHistorical([doc,doc],'東京',{year:2025,start:'2025-10-25',end:'2025-11-22'});
+test('deduplicates races and never treats absent sectional as zero',()=>{const g=aggregate().groups[0];assert.equal(g.count,2);assert.equal(g.winningSum,190);assert.equal(g.last3fCount,1);assert.equal(g.last3fSum,34);assert.equal(g.minWinningSeconds,94)});
+test('calendar window handles leap dates and year boundary',()=>{assert.equal(context.historicalWindow('2024-02-29',2023).start,'2023-02-14');assert.equal(context.historicalWindow('2026-01-03',2025).start,'2025-01-01');assert.equal(context.historicalWindow('2026-12-30',2025).end,'2025-12-31')});
+test('keeps dates, distances and classes separate',()=>{const result=context.aggregateHistorical([doc,{...doc,date:'2025-09-01'}, {...doc,track:'札幌'}],'東京',{year:2025,start:'2025-10-25',end:'2025-11-22'});assert.equal(result.groups.length,1);assert.equal(result.groups[0].count,2)});
+test('unknown-date collection failures remain explicit',()=>{const r=context.aggregateHistorical([{track:'東京',error:'download_failed',sourceUrl:'x'}],'東京',{year:2025,start:'2025-10-25',end:'2025-11-22'});assert.equal(r.issues.length,1);assert.equal(r.groups.length,0)});
+test('rejects invalid dates and years',async()=>{assert.equal((await context.historicalAverages(new URL('https://test/?date=2026-02-30&track=東京'))).status,400);assert.equal((await context.historicalAverages(new URL('https://test/?date=2026-11-08&track=東京&year=2026'))).status,400)});
+test('API distinguishes zero meetings from upstream failure',async()=>{context.fetch=async()=>({ok:true,json:async()=>({schemaVersion:1,year:2025,indexComplete:true,expectedDocuments:0,documents:[]})});let r=await context.historicalAverages(new URL('https://test/?date=2026-11-08&track=東京&year=2025'));assert.equal(r.data.coverage[0].status,'no_meeting');assert.equal(r.data.complete,true);context.fetch=async()=>({ok:false,status:404});r=await context.historicalAverages(new URL('https://test/?date=2026-11-08&track=東京&year=2025'));assert.equal(r.data.complete,false);assert.equal(r.data.error,'historical_data_unavailable');assert.match(r.data.coverage[0].issues[0].error,/404/)});
+test('API weighted sums and sectional counts are exact',async()=>{context.fetch=async()=>({ok:true,json:async()=>({schemaVersion:1,year:2025,indexComplete:true,expectedDocuments:1,documents:[doc]})});const r=await context.historicalAverages(new URL('https://test/?date=2026-11-08&track=東京&year=2025'));assert.equal(r.data.averages[0].averageWinningSeconds,95);assert.equal(r.data.averages[0].averageLast3f,34);assert.equal(r.data.averages[0].last3fCount,1)});
