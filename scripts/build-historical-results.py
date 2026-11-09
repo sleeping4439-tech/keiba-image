@@ -5,8 +5,8 @@ from urllib.parse import urljoin
 import fitz
 
 TRACKS={'sapporo':'札幌','hakodate':'函館','fukushima':'福島','niigata':'新潟','tokyo':'東京','nakayama':'中山','chukyo':'中京','kyoto':'京都','hanshin':'阪神','kokura':'小倉'}
-PARSER_VERSION=1
-HEADER=re.compile(r'(\d{1,2})月(\d{1,2})日.{0,15}?\((\d{4})年(\d+)('+'|'.join(TRACKS.values())+r')\)第(\d+)日第(\d+)競走')
+PARSER_VERSION=2
+HEADER=re.compile(r'\d{5}(\d{1,2})月(\d{1,2})日.{0,15}?\(([^)]+)\)第(\d+)日第(\d+)競走')
 
 def parse_pdf(content,source,expected_year,expected_track):
     with fitz.open(stream=content,filetype='pdf') as doc:
@@ -16,7 +16,13 @@ def parse_pdf(content,source,expected_year,expected_track):
     if not matches: raise ValueError('race_headers_not_found')
     date=None; seen=set()
     for i,m in enumerate(matches):
-        month,day,year,meeting,track,meeting_day,number=m.groups()
+        month,day,identity,meeting_day,number=m.groups()
+        modern=re.fullmatch(r'(\d{4})年(\d+)('+ '|'.join(TRACKS.values())+r')',identity)
+        era=re.fullmatch(r'(\d+)('+ '|'.join(TRACKS.values())+r')(\d+)',identity)
+        if modern: year,meeting,track=modern.groups()
+        elif era:
+            era_year,track,meeting=era.groups();year=str(2018+int(era_year))
+        else: raise ValueError('unrecognized_meeting_identity: '+identity)
         date=dt.date(int(year),int(month),int(day)).isoformat()
         if int(year)!=expected_year or track!=expected_track: raise ValueError('source_identity_mismatch')
         if number in seen: raise ValueError('duplicate_race_number')
