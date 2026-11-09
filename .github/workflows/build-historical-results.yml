@@ -1,0 +1,63 @@
+name: Build verified historical turf results
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/build-historical-results.py
+      - .github/workflows/build-historical-results.yml
+  schedule:
+    - cron: '25 18 2 * *'
+permissions:
+  contents: write
+concurrency:
+  group: historical-results
+  cancel-in-progress: false
+jobs:
+  years:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.years.outputs.matrix }}
+    steps:
+      - id: years
+        run: echo "matrix=$(python -c 'import datetime,json; y=datetime.datetime.now(datetime.timezone.utc).year; print(json.dumps(list(range(y-5,y))))')" >> "$GITHUB_OUTPUT"
+  collect:
+    needs: years
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(needs.years.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install PyMuPDF==1.26.6
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/jra-historical-pdfs
+          key: jra-pdf-${{ matrix.year }}-v1
+      - run: python scripts/build-historical-results.py --year ${{ matrix.year }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: history-${{ matrix.year }}
+          path: data/historical/${{ matrix.year }}.json
+  publish:
+    needs: collect
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: history-*
+          merge-multiple: true
+          path: data/historical
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/historical
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Update verified JRA historical turf results"
+          git pull --rebase origin main
+          git push origin HEAD:main
