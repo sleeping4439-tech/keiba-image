@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import fitz
 
 TRACKS={'sapporo':'札幌','hakodate':'函館','fukushima':'福島','niigata':'新潟','tokyo':'東京','nakayama':'中山','chukyo':'中京','kyoto':'京都','hanshin':'阪神','kokura':'小倉'}
-PARSER_VERSION=3
+PARSER_VERSION=4
 HEADER=re.compile(r'\d{5}(\d{1,2})月(\d{1,2})日.{0,15}?\(([^)]+)\)第(\d+)日第(\d+)競走')
 
 def parse_pdf(content,source,expected_year,expected_track):
@@ -52,10 +52,12 @@ def parse_pdf(content,source,expected_year,expected_track):
         winning=round(sum(laps),1)
         # Verify the measured lap total appears as a finish time, not just a course record.
         results=section.split('売得金')[0].split('中央レコード')[-1]
-        finish_times=re.findall(r'(\d):([0-5]\d)\.(\d)',results)
-        verified=any(abs(int(a)*60+int(b)+int(c)/10-winning)<0.01 for a,b,c in finish_times[2:])
-        if winning<60:
-            verified=bool(re.search(r'(?<![\d.])'+re.escape(f'{winning:.1f}')+r'(?!\.)',results))
+        finish_times=re.findall(r'\d:[0-5]\d\.\d|\d{2}\.\d',results)
+        record_count=2-results[:80].count('なし')
+        winner_text=finish_times[record_count] if len(finish_times)>record_count else ''
+        parts=winner_text.split(':')
+        official_winner=(int(parts[0])*60+float(parts[1])) if len(parts)==2 else float(parts[0] or 0)
+        verified=abs(official_winner-winning)<0.01
         if not verified:
             issues.append({'number':int(number),'error':'winning_time_not_verified','lapTotal':winning});continue
         final=re.search(r'上り(?:4F\d{2}\.\d[―ー−–－-])?3F(\d{2}\.\d)',section[lap.end():])
