@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import fitz
 
 TRACKS={'sapporo':'札幌','hakodate':'函館','fukushima':'福島','niigata':'新潟','tokyo':'東京','nakayama':'中山','chukyo':'中京','kyoto':'京都','hanshin':'阪神','kokura':'小倉'}
-PARSER_VERSION=7
+PARSER_VERSION=8
 HEADER=re.compile(r'\d{5}(\d{1,2})月(\d{1,2})日.{0,15}?\(([^)]+)\)第(\d+)日第(\d+)競走')
 
 def parse_pdf(content,source,expected_year,expected_track):
@@ -53,7 +53,7 @@ def parse_pdf(content,source,expected_year,expected_track):
         # Verify the measured lap total appears as a finish time, not just a course record.
         results=section.split('売得金')[0].split('中央レコード')[-1]
         finish_times=re.findall(r'\d:[0-5]\d\.\d' if winning>=60 else r'\d{2}\.\d',results)
-        record_count=2+int('レースレコード' in results[:80])-results[:80].count('なし')
+        record_count=2+int('レースレコード' in results[:80])+int('参考記録' in results[:80])-results[:80].count('なし')
         winner_text=finish_times[record_count] if len(finish_times)>record_count else ''
         parts=winner_text.split(':')
         official_winner=(int(parts[0])*60+float(parts[1])) if len(parts)==2 else float(parts[0] or 0)
