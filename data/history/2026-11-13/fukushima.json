@@ -1,0 +1,32 @@
+{
+  "track": "福島",
+  "course": "福島",
+  "condition": "良",
+  "meetingDate": "2026-11-13",
+  "observedAt": "2026-11-13",
+  "sourceUrl": "https://www.jra.go.jp/keiba/baba/index3.html",
+  "cushion": 9.8,
+  "meetingNumber": 3,
+  "meetingDay": 3,
+  "weather": "晴",
+  "rail": "A",
+  "railDay": null,
+  "moistureFinish": 12.6,
+  "moistureCorner": 13.8,
+  "moistureMeasuredAt": "2026-11-13T10:00:00+09:00",
+  "note": "表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。",
+  "history": [
+    {
+      "date": "2026-11-13",
+      "cushion": 9.8,
+      "cushionMeasuredAt": "2026-11-13T10:00:00+09:00",
+      "moistureFinish": 12.6,
+      "moistureCorner": 13.8,
+      "moistureMeasuredAt": "2026-11-13T10:00:00+09:00",
+      "condition": "良"
+    }
+  ],
+  "cushionMeasuredAt": "2026-11-13T10:00:00+09:00",
+  "conditionObservedAt": "2026-11-13",
+  "archivedAt": "2026-11-13T06:49:24.006Z"
+}
