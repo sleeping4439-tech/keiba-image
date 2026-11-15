@@ -1,21 +1,20 @@
 {
   "track": "京都",
   "course": "京都",
-  "condition": "重",
+  "condition": "良",
   "meetingDate": "2026-11-15",
   "observedAt": "2026-11-15",
   "sourceUrl": "https://www.jra.go.jp/keiba/baba/index2.html",
   "cushion": 9.7,
   "meetingNumber": 5,
   "meetingDay": 4,
-  "weather": "小雨",
+  "weather": "晴",
   "rail": "B",
   "railDay": 6,
   "moistureFinish": 9,
   "moistureCorner": 8.2,
   "moistureMeasuredAt": "2026-11-15T05:00:00+09:00",
   "note": "表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。",
-  "conditionSourceUrl": "https://www.jra.go.jp/JRADB/accessJ.html",
   "history": [
     {
       "date": "2026-11-13",
@@ -23,7 +22,8 @@
       "cushionMeasuredAt": "2026-11-13T10:30:00+09:00",
       "moistureFinish": 7.9,
       "moistureCorner": 8.4,
-      "moistureMeasuredAt": "2026-11-13T10:30:00+09:00"
+      "moistureMeasuredAt": "2026-11-13T10:30:00+09:00",
+      "condition": "良"
     },
     {
       "date": "2026-11-14",
@@ -39,11 +39,10 @@
       "cushionMeasuredAt": "2026-11-15T06:00:00+09:00",
       "moistureFinish": 9,
       "moistureCorner": 8.2,
-      "moistureMeasuredAt": "2026-11-15T05:00:00+09:00",
-      "condition": "重"
+      "moistureMeasuredAt": "2026-11-15T05:00:00+09:00"
     }
   ],
   "cushionMeasuredAt": "2026-11-15T06:00:00+09:00",
-  "conditionObservedAt": "2026-11-15",
-  "archivedAt": "2026-11-15T06:37:37.314Z"
+  "conditionObservedAt": "2026-11-13",
+  "archivedAt": "2026-11-15T16:23:39.402Z"
 }
