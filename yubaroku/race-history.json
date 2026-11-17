@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-09T21:23:38.405569+00:00",
+  "updatedAt": "2026-11-17T03:05:39.821631+00:00",
   "horses": [
     {
       "horseId": "2022103639",
@@ -328,19 +328,19 @@
       "name": "カーヌスティ",
       "state": "ok",
       "raceCount": 17,
-      "checkedAt": "2026-11-09T21:23:29.634982+00:00"
+      "checkedAt": "2026-11-17T03:05:31.338947+00:00"
     },
     {
       "name": "ダノンデサイル",
       "state": "error",
       "reason": "Horse search returned 0 exact IDs; manual ID confirmation required",
-      "checkedAt": "2026-11-09T21:23:38.405532+00:00"
+      "checkedAt": "2026-11-17T03:05:39.821574+00:00"
     },
     {
       "name": "マスカレードボール",
       "state": "ok",
       "raceCount": 11,
-      "checkedAt": "2026-11-09T21:23:25.006975+00:00"
+      "checkedAt": "2026-11-17T03:05:27.038338+00:00"
     }
   ]
 }
