@@ -1,57 +1,40 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-15T16:23:39.402Z",
+  "updatedAt": "2026-11-20T07:20:03.416Z",
   "activeTracks": [
     "福島",
-    "東京",
     "京都"
   ],
   "tracks": {
     "福島": {
       "course": "福島",
-      "condition": "良",
-      "meetingDate": "2026-11-15",
-      "observedAt": "2026-11-15",
+      "condition": "稍重",
+      "meetingDate": "2026-11-20",
+      "observedAt": "2026-11-20",
       "sourceUrl": "https://www.jra.go.jp/keiba/baba/index3.html",
-      "cushion": 9.6,
+      "cushion": 8.3,
       "meetingNumber": 3,
-      "meetingDay": 4,
-      "weather": "晴",
-      "rail": "A",
+      "meetingDay": 5,
+      "weather": "雨",
+      "rail": "B",
       "railDay": null,
-      "moistureFinish": 12.1,
-      "moistureCorner": 14.5,
-      "moistureMeasuredAt": "2026-11-15T06:00:00+09:00",
+      "moistureFinish": 14.8,
+      "moistureCorner": 15.6,
+      "moistureMeasuredAt": "2026-11-20T10:00:00+09:00",
       "note": "表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。",
       "history": [
         {
-          "date": "2026-11-13",
-          "cushion": 9.8,
-          "cushionMeasuredAt": "2026-11-13T10:00:00+09:00",
-          "moistureFinish": 12.6,
-          "moistureCorner": 13.8,
-          "moistureMeasuredAt": "2026-11-13T10:00:00+09:00",
-          "condition": "良"
-        },
-        {
-          "date": "2026-11-14",
-          "cushion": 9.9,
-          "cushionMeasuredAt": "2026-11-14T07:00:00+09:00",
-          "moistureFinish": 12,
-          "moistureCorner": 13.2,
-          "moistureMeasuredAt": "2026-11-14T05:00:00+09:00"
-        },
-        {
-          "date": "2026-11-15",
-          "cushion": 9.6,
-          "cushionMeasuredAt": "2026-11-15T07:00:00+09:00",
-          "moistureFinish": 12.1,
-          "moistureCorner": 14.5,
-          "moistureMeasuredAt": "2026-11-15T06:00:00+09:00"
+          "date": "2026-11-20",
+          "cushion": 8.3,
+          "cushionMeasuredAt": "2026-11-20T10:00:00+09:00",
+          "moistureFinish": 14.8,
+          "moistureCorner": 15.6,
+          "moistureMeasuredAt": "2026-11-20T10:00:00+09:00",
+          "condition": "稍重"
         }
       ],
-      "cushionMeasuredAt": "2026-11-15T07:00:00+09:00",
-      "conditionObservedAt": "2026-11-13"
+      "cushionMeasuredAt": "2026-11-20T10:00:00+09:00",
+      "conditionObservedAt": "2026-11-20"
     },
     "東京": {
       "course": "東京",
@@ -102,48 +85,32 @@
     "京都": {
       "course": "京都",
       "condition": "良",
-      "meetingDate": "2026-11-15",
-      "observedAt": "2026-11-15",
+      "meetingDate": "2026-11-20",
+      "observedAt": "2026-11-20",
       "sourceUrl": "https://www.jra.go.jp/keiba/baba/index2.html",
-      "cushion": 9.7,
+      "cushion": 9.6,
       "meetingNumber": 5,
-      "meetingDay": 4,
+      "meetingDay": 5,
       "weather": "晴",
-      "rail": "B",
-      "railDay": 6,
-      "moistureFinish": 9,
-      "moistureCorner": 8.2,
-      "moistureMeasuredAt": "2026-11-15T05:00:00+09:00",
+      "rail": "C",
+      "railDay": 1,
+      "moistureFinish": 9.5,
+      "moistureCorner": 9.4,
+      "moistureMeasuredAt": "2026-11-20T10:30:00+09:00",
       "note": "表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。",
       "history": [
         {
-          "date": "2026-11-13",
-          "cushion": 10.1,
-          "cushionMeasuredAt": "2026-11-13T10:30:00+09:00",
-          "moistureFinish": 7.9,
-          "moistureCorner": 8.4,
-          "moistureMeasuredAt": "2026-11-13T10:30:00+09:00",
+          "date": "2026-11-20",
+          "cushion": 9.6,
+          "cushionMeasuredAt": "2026-11-20T10:30:00+09:00",
+          "moistureFinish": 9.5,
+          "moistureCorner": 9.4,
+          "moistureMeasuredAt": "2026-11-20T10:30:00+09:00",
           "condition": "良"
-        },
-        {
-          "date": "2026-11-14",
-          "cushion": 10.1,
-          "cushionMeasuredAt": "2026-11-14T07:00:00+09:00",
-          "moistureFinish": 8.9,
-          "moistureCorner": 8,
-          "moistureMeasuredAt": "2026-11-14T06:00:00+09:00"
-        },
-        {
-          "date": "2026-11-15",
-          "cushion": 9.7,
-          "cushionMeasuredAt": "2026-11-15T06:00:00+09:00",
-          "moistureFinish": 9,
-          "moistureCorner": 8.2,
-          "moistureMeasuredAt": "2026-11-15T05:00:00+09:00"
         }
       ],
-      "cushionMeasuredAt": "2026-11-15T06:00:00+09:00",
-      "conditionObservedAt": "2026-11-13"
+      "cushionMeasuredAt": "2026-11-20T10:30:00+09:00",
+      "conditionObservedAt": "2026-11-20"
     }
   }
 }
