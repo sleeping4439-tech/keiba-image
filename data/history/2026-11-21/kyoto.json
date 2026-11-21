@@ -15,7 +15,6 @@
   "moistureCorner": 8.9,
   "moistureMeasuredAt": "2026-11-21T05:00:00+09:00",
   "note": "表示日は芝クッション値・含水率の共通測定日。馬場状態の発表日はconditionObservedAt。",
-  "conditionSourceUrl": "https://www.jra.go.jp/JRADB/accessJ.html",
   "history": [
     {
       "date": "2026-11-20",
@@ -23,7 +22,8 @@
       "cushionMeasuredAt": "2026-11-20T10:30:00+09:00",
       "moistureFinish": 9.5,
       "moistureCorner": 9.4,
-      "moistureMeasuredAt": "2026-11-20T10:30:00+09:00"
+      "moistureMeasuredAt": "2026-11-20T10:30:00+09:00",
+      "condition": "良"
     },
     {
       "date": "2026-11-21",
@@ -31,11 +31,10 @@
       "cushionMeasuredAt": "2026-11-21T06:00:00+09:00",
       "moistureFinish": 9.3,
       "moistureCorner": 8.9,
-      "moistureMeasuredAt": "2026-11-21T05:00:00+09:00",
-      "condition": "良"
+      "moistureMeasuredAt": "2026-11-21T05:00:00+09:00"
     }
   ],
   "cushionMeasuredAt": "2026-11-21T06:00:00+09:00",
-  "conditionObservedAt": "2026-11-21",
-  "archivedAt": "2026-11-21T07:13:22.900Z"
+  "conditionObservedAt": "2026-11-20",
+  "archivedAt": "2026-11-21T16:48:51.231Z"
 }
