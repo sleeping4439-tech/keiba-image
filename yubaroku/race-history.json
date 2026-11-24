@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-17T03:05:39.821631+00:00",
+  "updatedAt": "2026-11-24T04:56:01.490172+00:00",
   "horses": [
     {
       "horseId": "2022103639",
@@ -228,9 +228,9 @@
           "surface": "芝",
           "distance": "2000",
           "finish": "2",
-          "time": "",
+          "time": "2:00.8",
           "last3f": "",
-          "positions": ""
+          "positions": "7-8-8-8"
         },
         {
           "date": "2025-11-30",
@@ -328,19 +328,19 @@
       "name": "カーヌスティ",
       "state": "ok",
       "raceCount": 17,
-      "checkedAt": "2026-11-17T03:05:31.338947+00:00"
+      "checkedAt": "2026-11-24T04:55:53.164222+00:00"
     },
     {
       "name": "ダノンデサイル",
       "state": "error",
       "reason": "Horse search returned 0 exact IDs; manual ID confirmation required",
-      "checkedAt": "2026-11-17T03:05:39.821574+00:00"
+      "checkedAt": "2026-11-24T04:56:01.490130+00:00"
     },
     {
       "name": "マスカレードボール",
       "state": "ok",
       "raceCount": 11,
-      "checkedAt": "2026-11-17T03:05:27.038338+00:00"
+      "checkedAt": "2026-11-24T04:55:48.604644+00:00"
     }
   ]
 }
